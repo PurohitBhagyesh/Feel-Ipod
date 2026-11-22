@@ -8,26 +8,25 @@ import { audioEngine } from './audioEffects.js';
 let scene, camera, renderer, controls;
 let ipodGroup;
 let screenTexture, screenRenderer;
-let bodyMaterial, wheelMaterial, backMaterial;
 
-// Camera Target (Zoomed closely onto the device)
+// Camera Position matching reference image
 const cameraTarget = {
-  pos: new THREE.Vector3(0, -0.05, 1.95),
-  target: new THREE.Vector3(0, -0.05, 0)
+  pos: new THREE.Vector3(0, 0, 2.35),
+  target: new THREE.Vector3(0, 0, 0)
 };
 
 function updateCameraZoom() {
   const aspect = window.innerWidth / window.innerHeight;
   if (aspect < 1) {
-    // Mobile Portrait: zoom comfortably to fit device width
-    cameraTarget.pos.set(0, -0.05, Math.max(2.1, 1.95 / aspect * 0.62));
+    // Mobile portrait: scale to frame iPod width
+    cameraTarget.pos.set(0, 0, Math.max(2.4, 2.35 / aspect * 0.6));
   } else {
-    // Desktop Landscape: close, prominent zoom
-    cameraTarget.pos.set(0, -0.05, 1.95);
+    // Desktop landscape
+    cameraTarget.pos.set(0, 0, 2.35);
   }
 }
 
-// Toast Notification
+// Minimal Toast
 function showToast(message) {
   const toast = document.getElementById('toast');
   if (!toast) return;
@@ -36,29 +35,28 @@ function showToast(message) {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove('active');
-  }, 2600);
+  }, 2500);
 }
 
 // --- Initialize Scene ---
 function init() {
   const container = document.getElementById('canvas-container');
 
-  // Scene
+  // Scene with solid pure black background (matching user screenshot)
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0c);
-  scene.fog = new THREE.FogExp2(0x0a0a0c, 0.08);
+  scene.background = new THREE.Color(0x000000);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 50);
-  camera.position.set(0, 0.1, 3.4); // Entrance position
+  camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 50);
   updateCameraZoom();
+  camera.position.copy(cameraTarget.pos);
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.2;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
@@ -67,15 +65,14 @@ function init() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
-  controls.minDistance = 0.7;
+  controls.minDistance = 0.8;
   controls.maxDistance = 5.0;
   controls.minPolarAngle = 0.01;
   controls.maxPolarAngle = Math.PI - 0.01;
   controls.target.copy(cameraTarget.target);
 
-  // Lighting & Stage
+  // Studio Lighting (producing the soft highlight on the right edge as in screenshot)
   setupLighting();
-  createFloor();
 
   // Dynamic LCD Screen Engine
   screenRenderer = new iPodScreenRenderer();
@@ -88,8 +85,7 @@ function init() {
   // Load Model
   loadIpodModel();
 
-  // Interaction
-  setupWelcomeScreen();
+  // Setup Direct Click Wheel & Audio
   setupDirectClickWheel();
   setupMP3DropImporter();
 
@@ -99,10 +95,6 @@ function init() {
     screenTexture.needsUpdate = true;
   });
 
-  window.addEventListener('ipod-request-import', () => {
-    document.getElementById('mp3-file-input').click();
-  });
-
   // Responsive Resizing
   window.addEventListener('resize', onWindowResize);
 
@@ -110,107 +102,39 @@ function init() {
   animate();
 }
 
-// --- Lighting ---
+// --- Studio Lighting ---
 function setupLighting() {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
   scene.add(ambientLight);
 
-  const keyLight = new THREE.SpotLight(0xffffff, 4.5);
-  keyLight.position.set(3, 5, 4);
+  // Key Spotlight casting the specular sheen on the front right edge
+  const keyLight = new THREE.SpotLight(0xffffff, 4.0);
+  keyLight.position.set(2.5, 3.5, 3.5);
   keyLight.angle = Math.PI / 4;
-  keyLight.penumbra = 0.8;
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.width = 2048;
-  keyLight.shadow.mapSize.height = 2048;
-  keyLight.shadow.bias = -0.0001;
+  keyLight.penumbra = 0.7;
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xddeeff, 1.8);
-  fillLight.position.set(-4, 3, 2);
+  // Soft fill from left
+  const fillLight = new THREE.DirectionalLight(0xddeeff, 1.2);
+  fillLight.position.set(-3, 2, 2);
   scene.add(fillLight);
 
-  const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  rimLight.position.set(0, 4, -4);
+  // Backlight for edge definition
+  const rimLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  rimLight.position.set(0, 3, -3);
   scene.add(rimLight);
-
-  const bounceLight = new THREE.DirectionalLight(0x223344, 0.8);
-  bounceLight.position.set(0, -2, 0);
-  scene.add(bounceLight);
 }
 
-// --- Floor Shadow ---
-function createFloor() {
-  const floorGeo = new THREE.PlaneGeometry(20, 20);
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x0c0c10,
-    roughness: 0.75,
-    metalness: 0.2
-  });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -1.02;
-  floor.receiveShadow = true;
-  scene.add(floor);
-
-  const shadowGeo = new THREE.PlaneGeometry(2.2, 3.4);
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  const grad = ctx.createRadialGradient(64, 64, 10, 64, 64, 64);
-  grad.addColorStop(0, 'rgba(0,0,0,0.65)');
-  grad.addColorStop(0.5, 'rgba(0,0,0,0.25)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 128, 128);
-
-  const shadowTex = new THREE.CanvasTexture(canvas);
-  const shadowMat = new THREE.MeshBasicMaterial({
-    map: shadowTex,
-    transparent: true,
-    opacity: 0.8,
-    depthWrite: false
-  });
-  const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
-  contactShadow.rotation.x = -Math.PI / 2;
-  contactShadow.position.set(0, -1.01, 0);
-  scene.add(contactShadow);
-}
-
-// --- Load Model (Zero Logos) ---
+// --- Load Model with Original Materials & Dynamic Screen ---
 function loadIpodModel() {
   const loader = new GLTFLoader();
   const statusEl = document.getElementById('loader-status');
   const overlay = document.getElementById('loader-overlay');
 
-  statusEl.textContent = 'Loading 3D Player...';
-
   loader.load('/models/ipod_classic.glb', (gltf) => {
     ipodGroup = gltf.scene;
     ipodGroup.rotation.y = -Math.PI / 2;
     ipodGroup.position.set(0, 0, 0);
-
-    bodyMaterial = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(0xf5f5f7),
-      metalness: 0.05,
-      roughness: 0.15,
-      clearcoat: 0.85,
-      clearcoatRoughness: 0.1,
-      reflectivity: 0.9
-    });
-
-    wheelMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0xf0f0f2),
-      metalness: 0.02,
-      roughness: 0.45
-    });
-
-    backMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0xffffff),
-      metalness: 0.98,
-      roughness: 0.12,
-      envMapIntensity: 1.5
-    });
 
     const screenMaterial = new THREE.MeshBasicMaterial({
       map: screenTexture
@@ -218,28 +142,34 @@ function loadIpodModel() {
 
     ipodGroup.traverse((child) => {
       if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-
         const parentName = child.parent ? child.parent.name : '';
         const name = child.name || '';
 
         if (parentName.includes('Screen') || name.includes('Screen')) {
+          // Remap UV coordinates so the dynamic LCD canvas fits the screen perfectly
+          const uvAttr = child.geometry.attributes.uv;
+          const posAttr = child.geometry.attributes.position;
+          const minY = 0.215, maxY = 0.875;
+          const minZ = -0.398, maxZ = 0.403;
+
+          for (let i = 0; i < posAttr.count; i++) {
+            const y = posAttr.getY(i);
+            const z = posAttr.getZ(i);
+            const u = (maxZ - z) / (maxZ - minZ);
+            const v = (y - minY) / (maxY - minY);
+            uvAttr.setXY(i, u, v);
+          }
+          uvAttr.needsUpdate = true;
           child.material = screenMaterial;
-        } else if (parentName.includes('body')) {
-          child.material = bodyMaterial;
-        } else if (parentName.includes('Switch') || parentName.includes('Port') || parentName.includes('jack')) {
-          child.material = backMaterial;
-        } else {
-          child.material = bodyMaterial;
         }
       }
     });
 
     scene.add(ipodGroup);
 
+    // Hide loader
     overlay.style.opacity = '0';
-    setTimeout(() => { overlay.style.display = 'none'; }, 400);
+    setTimeout(() => { overlay.style.display = 'none'; }, 300);
 
   }, (xhr) => {
     if (xhr.lengthComputable) {
@@ -252,27 +182,7 @@ function loadIpodModel() {
   });
 }
 
-// --- Welcome Screen Logic ---
-function setupWelcomeScreen() {
-  const welcomeOverlay = document.getElementById('welcome-screen');
-  const feelItBtn = document.getElementById('btn-feel-it');
-
-  feelItBtn.addEventListener('click', () => {
-    audioEngine.init();
-    audioEngine.playDriveSpinUp();
-    audioEngine.playClick();
-
-    welcomeOverlay.classList.add('hidden');
-    // Zoom in closely
-    updateCameraZoom();
-    // Start audio
-    audioEngine.toggleMusic(true);
-    screenRenderer.setTrack(audioEngine.getCurrentTrack(), true);
-    screenTexture.needsUpdate = true;
-  });
-}
-
-// --- Authentic Direct 3D Rotary Click Wheel Interaction ---
+// --- Authentic Direct Click Wheel Interaction ---
 function setupDirectClickWheel() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -302,6 +212,8 @@ function setupDirectClickWheel() {
 
   // Pointer Down on the 3D Player
   window.addEventListener('pointerdown', (e) => {
+    audioEngine.init(); // unlock audio context
+
     const hit = getRaycastHit(e);
     if (!hit) return;
 
@@ -312,7 +224,7 @@ function setupDirectClickWheel() {
 
     // Click Wheel zone: R <= 0.40 on front face (Z > 0.05)
     if (dist <= 0.40 && p.z > 0.05) {
-      // Lock orbit controls so dragging spins the wheel, not the camera!
+      // Temporarily lock orbit controls so user can spin the wheel
       controls.enabled = false;
       isWheelDragging = true;
       hasDragged = false;
@@ -339,18 +251,16 @@ function setupDirectClickWheel() {
     const currentAngle = getAngleOnWheel(hit.point);
     let delta = currentAngle - lastWheelAngle;
 
-    // Normalize wrap around [-PI, PI]
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
 
     accumulatedAngle += delta;
     lastWheelAngle = currentAngle;
 
-    // ~14 degrees per mechanical click notch
+    // ~14 degrees per notch
     const notch = Math.PI / 13;
     if (Math.abs(accumulatedAngle) >= notch) {
       // Clockwise (delta < 0 in standard cartesian with inverted Y) -> scroll down
-      // In atan2(dy, dx), clockwise from top goes angle decreasing
       const step = delta < 0 ? 1 : -1;
       accumulatedAngle = 0;
 
@@ -360,13 +270,12 @@ function setupDirectClickWheel() {
     }
   });
 
-  // Pointer Up / Release: Handle discrete button click if user tapped without spinning
+  // Pointer Up: Handle button click if user tapped without spinning
   window.addEventListener('pointerup', (e) => {
     if (!isWheelDragging) return;
     isWheelDragging = false;
     controls.enabled = true;
 
-    // If it was a tap / click (not a rotary spin)
     if (!hasDragged) {
       const hit = getRaycastHit(e);
       if (!hit) return;
@@ -380,12 +289,19 @@ function setupDirectClickWheel() {
       if (dist < 0.13) {
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
-        if (res && res.action === 'playTrack') {
-          const track = audioEngine.selectTrackById(res.trackId);
-          screenRenderer.setTrack(track, true);
-        } else if (res && res.action === 'togglePlay') {
-          const isPlaying = audioEngine.toggleMusic();
-          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+        if (res) {
+          if (res.action === 'playTrack') {
+            const track = audioEngine.selectTrackById(res.trackId);
+            screenRenderer.setTrack(track, true);
+          } else if (res.action === 'togglePlay') {
+            const isPlaying = audioEngine.toggleMusic();
+            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+          } else if (res.action === 'shuffle') {
+            audioEngine.playDriveSpinUp();
+            const isPlaying = audioEngine.toggleMusic(true);
+            screenRenderer.viewStack.push('nowPlaying');
+            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+          }
         }
         screenTexture.needsUpdate = true;
         return;
@@ -406,7 +322,7 @@ function setupDirectClickWheel() {
           screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
           screenTexture.needsUpdate = true;
         } else if (Math.abs(angleDeg) > 135) {
-          // LEFT: PREVIOUS TRACK
+          // LEFT: PREV TRACK
           const track = audioEngine.prevTrack();
           screenRenderer.setTrack(track, audioEngine.isPlaying);
           screenTexture.needsUpdate = true;
@@ -479,19 +395,15 @@ function setupMP3DropImporter() {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Smooth camera zoom
-  camera.position.lerp(cameraTarget.pos, 0.05);
-  controls.target.lerp(cameraTarget.target, 0.05);
-
   controls.update();
 
-  // Gentle breathing float
+  // Subtle breathing float for realism
   if (ipodGroup) {
     const t = Date.now() * 0.001;
-    ipodGroup.position.y = Math.sin(t * 1.2) * 0.015;
+    ipodGroup.position.y = Math.sin(t * 1.2) * 0.012;
   }
 
-  // Update Screen Canvas
+  // Update dynamic screen canvas
   if (screenRenderer.render()) {
     screenTexture.needsUpdate = true;
   }
