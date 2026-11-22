@@ -280,16 +280,9 @@ function createDedicatedScreen() {
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   screenTexture.needsUpdate = true;
 
-  // Thin recessed dark bezel frame behind LCD
-  const bezelGeo = new THREE.PlaneGeometry(0.816, 0.616);
-  const bezelMat = new THREE.MeshBasicMaterial({ color: 0x14161c });
-  screenBezelMesh = new THREE.Mesh(bezelGeo, bezelMat);
-  screenBezelMesh.position.set(0, SCREEN_CENTER_Y, FRONT_FACE_Z - 0.0006);
-  screenBezelMesh.renderOrder = 4;
-  scene.add(screenBezelMesh);
-
-  // Active LCD screen plane (width 0.80, height 0.60 matching 4:3 512x384 canvas)
-  const screenGeo = new THREE.PlaneGeometry(0.80, 0.60);
+  // Active LCD screen plane enlarged to 0.818 x 0.618 to seamlessly fill the front aperture
+  // with zero dark/black bar around the screen
+  const screenGeo = new THREE.PlaneGeometry(0.818, 0.618);
   const screenMaterial = new THREE.MeshBasicMaterial({
     map: screenTexture,
     polygonOffset: true,
@@ -310,20 +303,21 @@ function updateCameraFraming() {
 
   if (aspect < 0.65) {
     // Tall portrait smartphones (e.g. iPhone, Pixel)
-    z = Math.max(5.15, 2.50 / aspect);
-    y = -0.02;
+    z = Math.max(5.40, 2.70 / aspect);
+    y = -0.06;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = Math.max(4.75, 2.55 / aspect);
-    y = -0.03;
+    z = Math.max(5.05, 2.75 / aspect);
+    y = -0.08;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
-    z = 4.70;
-    y = -0.04;
+    z = 4.95;
+    y = -0.09;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
-    z = 4.60;
-    y = -0.04;
+    // Generous ~110px-120px clearance between bottom of pod and bottom dock
+    z = 4.85;
+    y = -0.10;
   }
 
   camera.position.set(0, y, z);
@@ -1160,6 +1154,26 @@ function setupTopNav() {
       toggleHeadphonePlug();
     });
   }
+
+  // Hide / Show (Collapse / Expand) Bottom Options Dock
+  const btnDockCollapse = document.getElementById('btn-dock-collapse');
+  const btnDockExpand = document.getElementById('btn-dock-expand');
+  const bottomDock = document.getElementById('bottom-dock');
+
+  if (btnDockCollapse && bottomDock) {
+    btnDockCollapse.addEventListener('click', () => {
+      bottomDock.classList.add('collapsed');
+      if (themeTray) themeTray.classList.add('hidden');
+      if (btnDockExpand) btnDockExpand.classList.remove('hidden');
+    });
+  }
+
+  if (btnDockExpand && bottomDock) {
+    btnDockExpand.addEventListener('click', () => {
+      bottomDock.classList.remove('collapsed');
+      btnDockExpand.classList.add('hidden');
+    });
+  }
 }
 
 function updateTopNavTrackBadge(track, isPlaying) {
@@ -1312,16 +1326,39 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
   });
 
-  // Custom Background Wallpaper from file
+  // Custom Background Wallpaper (Supports Images & Videos)
   const bgInput = document.getElementById('bg-file-input');
+  const bgVideo = document.getElementById('bg-video');
+
   bgInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    if (file.type.startsWith('video/')) {
+      // Background Video (mp4, webm, etc.)
+      const videoUrl = URL.createObjectURL(file);
+      document.body.style.backgroundImage = 'none';
+      if (bgVideo) {
+        bgVideo.src = videoUrl;
+        bgVideo.classList.remove('hidden');
+        bgVideo.play().catch(err => console.log('Autoplay deferred:', err));
+      }
+      simulatorSettings.customBg = null;
+      simulatorSettings.customVideo = true;
+      showToast("Video background set");
+    } else {
+      // Background Image
+      if (bgVideo) {
+        bgVideo.pause();
+        bgVideo.src = '';
+        bgVideo.classList.add('hidden');
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const url = event.target.result;
         document.body.style.backgroundImage = `url("${url}")`;
         simulatorSettings.customBg = url;
+        simulatorSettings.customVideo = false;
         localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
         showToast("Background wallpaper updated");
       };
@@ -1331,9 +1368,15 @@ function setupSettingsModal() {
 
   document.getElementById('btn-reset-bg').addEventListener('click', () => {
     document.body.style.backgroundImage = '';
+    if (bgVideo) {
+      bgVideo.pause();
+      bgVideo.src = '';
+      bgVideo.classList.add('hidden');
+    }
     simulatorSettings.customBg = null;
+    simulatorSettings.customVideo = false;
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
-    showToast("Background reset to Studio gradient");
+    showToast("Background reset to Studio White");
   });
 }
 

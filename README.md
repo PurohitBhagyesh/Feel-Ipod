@@ -1,4 +1,4 @@
-# FeelPod 3D (MP3 Player Simulator)
+# FeelPod 3D
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-black?style=flat&logo=three.js)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?style=flat&logo=vite)](https://vitejs.dev/)
@@ -9,30 +9,36 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ---
 
-## Features
+## Key Features
 
-- **Responsive Auto-Framing & Layout Engine**
-  - Camera distance and vertical centering automatically adapt to any screen size (desktop, widescreen, tablet, and mobile portrait).
-  - Preserves breathing room (40px–80px clearance) above the bottom dock and top view so the device, click wheel, and headphone cable are always in view.
+- **Seamless Edge-to-Edge LCD Display (Zero Black Bar)**
+  - LCD screen plane precision-calibrated (0.818 x 0.618 world units) to fill the front casing window seamlessly with zero black gap or dark bezel outline.
+
+- **Studio White Default Aesthetic**
+  - Default background is a pristine Apple design studio white radial backdrop (`#ffffff` fading gently to `#f6f7fa` and `#e6e9f0` at the edges), providing high-end contrast for the 3D player, metallic rim highlights, and soft contact drop shadow.
+
+- **Background Video & Wallpaper Support**
+  - Custom background uploader supports both high-resolution images and live background videos (`.mp4`, `.webm`, `.mov`) playing seamlessly behind the 3D player. Includes an instant Reset to Studio White button.
+
+- **Collapsible Apple Liquid Glass Options Dock**
+  - Sleek `>` toggle button in the options bar collapses the dock downward for an uncluttered, distraction-free view.
+  - A discreet floating glass `Controls` pill appears at the bottom center to smoothly slide the options bar back into view.
+
+- **Generous Pod-to-Dock Spacing & Responsive Auto-Framing**
+  - Camera distance and vertical centering are auto-calibrated to preserve 100px–120px of breathing room between the bottom of the player and the options bar across desktop, widescreen, tablet, and mobile portrait viewports.
+
+- **Permanent Real-Life 3.5mm Plug Tip (White + Light Grey)**
+  - 1:1 physical model based on genuine Apple EarPods:
+    - Conductor metal (Tip dome, Ring 1, Ring 2, Sleeve) permanently locked to luminous light grey silver chrome (`#e2e6ee` / `#d4d8e2`).
+    - Crisp pure white Delrin insulator rings (`#ffffff`) flush with the metal cylinder.
+    - Locked color state: casing and wheel customizations never alter the plug tip's authentic white + light grey finish.
+  - Automatically animates into the top jack when headphones are plugged in or detected.
 
 - **Local Database Persistence & Deduplication (IndexedDB)**
   - Stores imported audio files (`Blob`), ID3 metadata, and extracted cover art permanently in browser local IndexedDB (`FeelPodMusicDB`).
   - Songs persist across browser restarts, page refreshes, and tabs without re-uploading.
   - Automatic deduplication check prevents the same song from being added multiple times.
-  - Clean initial state: dummy default songs removed; starts fresh with authentic "No Music" empty state.
-
-- **Real-Life 3.5mm Earphone Plug Tip (Pure White + Light Grey)**
-  - 1:1 physical model based on genuine Apple EarPods:
-    - Luminous light grey silver conductors (Tip, Ring 1, Ring 2, Sleeve) with satin metallic sheen.
-    - Pure white Delrin insulator rings flush with the metal cylinder.
-    - Machined light grey detent latching groove and smooth bullet/chamfered dome nose.
-    - Pure white polycarbonate cylindrical barrel with seamless silicone strain relief and white cable.
-  - Automatically animates into the top jack when headphones are plugged in or detected.
-
-- **Transparent Apple Liquid Glass Settings & Dock**
-  - Settings modal and bottom dock feature frosted glass (`backdrop-filter: blur(48px) saturate(210%)` and `rgba(18, 22, 34, 0.45)`).
-  - Background wallpapers softly blur through modals and navigation bars.
-  - Privacy-first: no personal IDs or email addresses exposed in the interface.
+  - Starts fresh with authentic "No Music" empty state.
 
 - **Curated Neutral & Premium Color Editions**
   - **Neutral Classics**:
@@ -48,12 +54,7 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
     - *Alpine Pine* (`#2d4030`)
     - *Cabernet Velvet* (`#4a1525`)
     - *U2 Collector Edition* (Jet Black & Crimson Red)
-  - Custom real-time RGB/Hex color pickers for casing, wheel, and jack.
-
-- **Mobile-Optimized Interface**
-  - Dedicated mobile stylesheet supporting modern smartphone viewports (`100dvh` and safe-area insets).
-  - Compact dock layout prioritizing icons and track status badges.
-  - Scaled touch-target click wheel and popover panels.
+  - Custom real-time RGB/Hex color pickers for casing, wheel, and cable.
 
 - **Embedded Album Cover Art Extraction (ID3v2 APIC)**
   - Native client-side ID3v2 parser extracts attached picture (`APIC`) artwork directly from imported MP3, M4A, and FLAC files.
@@ -65,7 +66,7 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Real-time timecode updates (elapsed time and remaining time) as you slide.
 
 - **Authentic Concentric Procedural Click Wheel**
-  - 100% mathematically aligned, concentric procedural vector click wheel with instant visual button flash feedback.
+  - 100% mathematically aligned concentric procedural vector click wheel with instant visual button flash feedback.
   - High-contrast highlighted typography (`#1e293b`) and razor-sharp vector symbols.
   - Continuous rotary drag detection using circular trigonometry (`atan2`) with mechanical piezo audio ticks.
   - 5 responsive physical control zones:
@@ -74,25 +75,12 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
     - **Bottom**: Play / Pause
     - **Left**: Previous track
     - **Right**: Next track
-  - Mouse scroll wheel support directly over the player for lightning-fast scrolling.
+  - Mouse scroll wheel support directly over the player for fast rotary scrolling.
 
 - **Real Wired Headphone Auto-Connect**
-  - **Auto-Connect**: Detects when you connect physical wired headphones or AirPods/Bluetooth to your device (`navigator.mediaDevices`), automatically triggering the 3D jack insertion.
-  - **Earphone-Driven Audio**: Sound plays only when earphones are plugged in; unplugging immediately pauses and mutes.
-  - **Immersive Modal**: Sleek **"Wear Headphones"** popup appears when connecting.
-
-- **Comprehensive Simulator Settings**
-  - **Reduce Motion**: Toggle to disable floating breathing animations and enable instant transitions.
-  - **Wheel Sensitivity**: Interactive slider (0.5x to 2.5x) to fine-tune rotary scrolling speed.
-  - **On-Screen Virtual Wheel**: Toggle an authentic on-screen touch controller in the bottom right corner.
-  - **Custom Background Wallpaper**: Upload any custom wallpaper image directly from your local device, with an instant Reset button.
-  - **Auto-Plug Real Headphones**: Toggle automatic 3D jack insertion on physical audio device detection.
-
-- **Import MP3 Feature (Inside UI & Drag-and-Drop)**
-  - Direct menu item `Import MP3` on the player screen and bottom dock.
-  - Select single or multiple audio files (.mp3, .wav, .m4a, .aac, .flac).
-  - Drag-and-drop any audio file anywhere onto the player to instantly load and play it.
-  - Automatic metadata extraction (title, artist, duration, cover art).
+  - Detects when you connect physical wired headphones or AirPods/Bluetooth to your device (`navigator.mediaDevices`), automatically triggering the 3D jack insertion.
+  - Sound plays only when earphones are plugged in; unplugging immediately pauses and mutes.
+  - Sleek **"Wear Headphones"** popup appears when connecting.
 
 - **Alive "Now Playing" LCD Screen**
   - **10-Band Live Graphic Equalizer**: Real-time bouncing LCD spectrum visualizer bars with segmented bricks and peak hold dots.
@@ -117,6 +105,8 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 | **Next Song** | Click right of Wheel |
 | **Scrub / Slide Song** | Click or drag directly on the LCD timeline bar |
 | **Plug / Unplug Earphones** | Click the hovering 3.5mm plug, top jack opening, or bottom dock button |
+| **Hide / Collapse Options Bar** | Click **`>`** in the bottom dock |
+| **Show / Expand Options Bar** | Click floating **Controls** pill at bottom center |
 | **Customize Colors** | Click **Color** in bottom dock |
 | **Open Settings** | Click **Settings** in bottom dock, or select **Preferences...** on screen |
 | **Import Audio Files** | Click **Import**, select on screen, or drag & drop files into window |

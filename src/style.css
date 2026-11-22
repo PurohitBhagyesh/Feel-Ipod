@@ -8,17 +8,34 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  background: radial-gradient(ellipse 75% 65% at 50% 45%, #232838 0%, #12151e 48%, #06070a 100%);
+  background: radial-gradient(ellipse 85% 75% at 50% 45%, #ffffff 0%, #f6f7fa 55%, #e6e9f0 100%);
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  color: #ffffff;
+  color: #0f172a;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
   user-select: none;
   touch-action: none;
   transition: background 0.4s ease;
+}
+
+/* Background Video for Live Wallpapers */
+.bg-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.bg-video.hidden {
+  display: none;
 }
 
 #canvas-container {
@@ -33,7 +50,7 @@ body {
 /* --- Apple Liquid Glass Bottom Dock --- */
 .apple-glass-dock {
   position: fixed;
-  bottom: 22px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
@@ -42,22 +59,75 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px 0 18px;
-  background: rgba(18, 22, 34, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0 12px 0 18px;
+  background: rgba(18, 22, 34, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.20);
   backdrop-filter: blur(32px) saturate(190%);
   -webkit-backdrop-filter: blur(32px) saturate(190%);
   border-radius: 26px;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.30), 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.25);
   z-index: 50;
   pointer-events: auto;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .apple-glass-dock:hover {
-  background: rgba(22, 28, 42, 0.55);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  background: rgba(22, 28, 42, 0.88);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38), 0 6px 16px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.30);
+}
+
+/* Collapsed Dock State */
+.apple-glass-dock.collapsed {
+  transform: translate(-50%, calc(100% + 40px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Floating Pill to Re-Open Options Bar */
+.dock-expand-tab {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: rgba(18, 22, 34, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border-radius: 20px;
+  color: #f8fafc;
+  font-size: 0.80rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dock-expand-tab:hover {
+  background: rgba(26, 32, 48, 0.95);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
+}
+
+.dock-expand-tab.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(20px);
+}
+
+.expand-svg {
+  width: 14px;
+  height: 14px;
+  color: #f8fafc;
+}
+
+.dock-collapse-btn {
+  padding: 6px 10px;
 }
 
 .dock-brand {

@@ -277,7 +277,7 @@ export class iPodScreenRenderer {
     }
 
     // Title in center
-    let title = 'MP3 Player';
+    let title = 'FeelPod';
     const view = this.getCurrentView();
     if (view === 'music') title = 'Music';
     else if (view === 'songs') title = 'Songs';
@@ -506,7 +506,7 @@ export class iPodScreenRenderer {
     // Album
     ctx.font = '15px -apple-system, sans-serif';
     ctx.fillStyle = '#666666';
-    const album = this.currentTrack.album || "MP3 Player Simulator 3D";
+    const album = this.currentTrack.album || "FeelPod 3D";
     const albumShort = album.length > 22 ? album.slice(0, 20) + '...' : album;
     ctx.fillText(albumShort, textX, 153);
 
