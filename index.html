@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feel iPod - Interactive 3D Experience & Customizer</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Loading Screen -->
+  <div id="loader-overlay">
+    <div class="spinner"></div>
+    <div class="loader-text" id="loader-status">Loading iPod Classic & Wired Earphones...</div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon"></div>
+      <h1>Feel iPod</h1>
+      <span>Classic 3D</span>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-icon" id="btn-toggle-sound">
+        <span id="sound-icon">🔊</span> Sound On
+      </button>
+      <button class="btn-icon" id="btn-reset-view">
+        <span>🔄</span> Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive 3D Hint -->
+  <div class="interactive-hint">
+    ✨ Drag to rotate 3D iPod • Scroll wheel on iPod to browse
+  </div>
+
+  <!-- Left Color Customizer & Redesign Panel -->
+  <aside class="customizer-panel">
+    <div class="panel-header">
+      <h2>Color Studio</h2>
+      <span style="font-size: 0.75rem; color: var(--text-muted);">Real-Time</span>
+    </div>
+
+    <!-- Target Selector -->
+    <div class="segmented-control">
+      <button class="segment-btn active" data-target="body">Body</button>
+      <button class="segment-btn" data-target="wheel">Wheel</button>
+      <button class="segment-btn" data-target="earphones">Earphones</button>
+      <button class="segment-btn" data-target="all">All</button>
+    </div>
+
+    <!-- Circular Color Wheel -->
+    <div class="color-wheel-wrapper">
+      <div class="wheel-canvas-container" id="wheel-container">
+        <canvas id="color-wheel-canvas" width="190" height="190"></canvas>
+        <div class="wheel-handle" id="wheel-handle"></div>
+      </div>
+
+      <!-- Brightness / Lightness Slider -->
+      <div class="slider-container">
+        <div class="slider-label">
+          <span>Brightness</span>
+          <span id="lightness-val">90%</span>
+        </div>
+        <input type="range" id="lightness-slider" class="custom-slider" min="0" max="100" value="90" />
+      </div>
+
+      <!-- Color Info Bar -->
+      <div class="color-info-bar">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="color-preview-box" id="color-preview" style="background-color: #f5f5f7;"></div>
+          <span class="hex-value" id="hex-label">#F5F5F7</span>
+        </div>
+        <input type="color" id="native-color" class="native-color-input" value="#f5f5f7" title="Custom color picker" />
+      </div>
+    </div>
+
+    <!-- Curated Iconic Presets -->
+    <div class="preset-section">
+      <div class="section-label">Iconic Editions</div>
+      <div class="presets-grid">
+        <div class="preset-chip" data-color="#f5f5f7" style="background: #f5f5f7;">
+          <span style="color: #333;">Classic</span>
+        </div>
+        <div class="preset-chip" data-color="#111111" style="background: #111111; border-color: #e50914;">
+          <span style="color: #ff3333;">U2</span>
+        </div>
+        <div class="preset-chip" data-color="#7d7e80" style="background: #7d7e80;">
+          <span>Silver</span>
+        </div>
+        <div class="preset-chip" data-color="#007aff" style="background: #007aff;">
+          <span>Atomic</span>
+        </div>
+        <div class="preset-chip" data-color="#8a2be2" style="background: #8a2be2;">
+          <span>Cyber</span>
+        </div>
+        <div class="preset-chip" data-color="#ff5722" style="background: #ff5722;">
+          <span>Sunset</span>
+        </div>
+        <div class="preset-chip" data-color="#30d158" style="background: #30d158;">
+          <span>Mint</span>
+        </div>
+        <div class="preset-chip" data-color="#d4af37" style="background: #d4af37;">
+          <span>Gold</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Interactive Click Wheel Floating Controller (Bottom Right) -->
+  <div class="clickwheel-controller">
+    <div class="wheel-outer" id="virtual-wheel">
+      <button class="wheel-btn btn-menu" id="ctrl-menu">MENU</button>
+      <button class="wheel-btn btn-prev" id="ctrl-prev">|◀◀</button>
+      <button class="wheel-btn btn-next" id="ctrl-next">▶▶|</button>
+      <button class="wheel-btn btn-play" id="ctrl-play">▶❚❚</button>
+      <button class="wheel-center-btn" id="ctrl-center">SELECT</button>
+    </div>
+  </div>
+
+  <!-- Bottom Camera View Presets -->
+  <div class="scene-dock">
+    <button class="dock-btn active" data-view="studio">Studio View</button>
+    <div class="divider"></div>
+    <button class="dock-btn" data-view="front">Front (Screen)</button>
+    <div class="divider"></div>
+    <button class="dock-btn" data-view="back">Back (Chrome)</button>
+    <div class="divider"></div>
+    <button class="dock-btn" data-view="earphones">Earphones</button>
+  </div>
+
+  <!-- Main JavaScript Entrypoint -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
