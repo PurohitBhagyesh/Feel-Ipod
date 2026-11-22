@@ -3,303 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Feel iPod - Nostalgic 3D Classic iPod Experience</title>
+  <title>Feel iPod</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <!-- 3D WebGL Canvas Container -->
+  <!-- 3D WebGL Canvas (Pure iPod Experience) -->
   <div id="canvas-container"></div>
-
-  <!-- Drag & Drop Overlay for MP3 Import -->
-  <div id="drop-overlay" class="drop-overlay">
-    <div class="drop-card">
-      <div class="drop-icon">🎵</div>
-      <h2>Drop your MP3 here</h2>
-      <p>Sync your song directly into the iPod's memory</p>
-    </div>
-  </div>
 
   <!-- Loading Screen -->
   <div id="loader-overlay">
     <div class="spinner"></div>
-    <div class="loader-text" id="loader-status">Loading iPod Classic & Earphones...</div>
+    <div class="loader-text" id="loader-status">Loading iPod...</div>
   </div>
 
-  <!-- Toast Notification Pill -->
+  <!-- Minimal Drag & Drop Notification -->
   <div id="toast" class="toast-pill"></div>
 
-  <!-- Hidden File Input for MP3 Import -->
+  <!-- Hidden File Input for Audio Drop/Import -->
   <input type="file" id="mp3-file-input" accept="audio/*" style="display: none;" />
 
-  <!-- 1. Nostalgic Welcome Screen -->
+  <!-- Nostalgic Welcome Screen -->
   <div id="welcome-screen" class="welcome-overlay">
     <div class="welcome-content">
       <div class="welcome-badge"> Retro Experience</div>
       <h1 class="welcome-title">Let's feel the iPod nostalgic</h1>
       <p class="welcome-subtitle">
-        1,000 songs in your pocket. Touch the iconic click wheel, customize your classic colorway, plug in the wired earbuds, and import your own MP3s.
+        Touch the iconic click wheel, browse the classic LCD screen, and relive the tactile magic.
       </p>
       
       <div class="welcome-buttons">
         <button id="btn-feel-it" class="btn-welcome primary">
           <span>✨</span> Feel It
         </button>
-        <button id="btn-welcome-settings" class="btn-welcome secondary">
-          <span>⚙️</span> Settings
-        </button>
-      </div>
-
-      <div class="welcome-features">
-        <div class="feature-tag">🎧 Real 3.5mm Plug-in</div>
-        <div class="feature-tag">🎵 Real MP3 Import</div>
-        <div class="feature-tag">🔊 Tactile Wheel Clicks</div>
-        <div class="feature-tag">🔄 360° Free Rotate</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. Minimal Unslop Top Navigation Bar -->
-  <header class="navbar" id="main-navbar">
-    <div class="brand">
-      <div class="brand-icon"></div>
-      <h1>Feel iPod</h1>
-    </div>
-
-    <!-- Center Floating Action Island -->
-    <div class="floating-island">
-      <button class="island-btn" id="btn-plug-earphones" title="Plug In / Unplug 3.5mm Earbuds">
-        <span id="plug-icon">🔌</span>
-        <span id="plug-text">Plug In</span>
-      </button>
-
-      <button class="island-btn" id="btn-import-mp3" title="Import your own MP3 / Audio">
-        <span>🎵</span>
-        <span class="desktop-only">Import MP3</span>
-      </button>
-
-      <button class="island-btn" id="btn-toggle-colors" title="Toggle Color Studio">
-        <span>🎨</span>
-        <span class="desktop-only">Colors</span>
-      </button>
-
-      <button class="island-btn" id="btn-toggle-wheel-overlay" title="Toggle Wheel Controller">
-        <span>🎛️</span>
-        <span class="desktop-only">Wheel</span>
-      </button>
-    </div>
-
-    <div class="nav-actions">
-      <button class="btn-icon" id="btn-home" title="Back to Welcome">
-        <span>🏠</span>
-      </button>
-      <button class="btn-icon" id="btn-toggle-sound" title="Sound On/Off">
-        <span id="sound-icon">🔊</span>
-      </button>
-      <button class="btn-icon" id="btn-open-settings" title="Settings">
-        <span>⚙️</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Interactive 3D Hint -->
-  <div class="interactive-hint desktop-only" id="stage-hint">
-    ✨ Free 360° Orbit • Click & drag on iPod wheel • Drag & drop MP3 anywhere
-  </div>
-
-  <!-- 3. Left Color Customizer & Redesign Panel (Collapsible) -->
-  <aside class="customizer-panel hidden" id="customizer-panel">
-    <div class="panel-header">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <h2>Color Studio</h2>
-        <span class="live-pill">Live</span>
-      </div>
-      <button class="close-panel-btn" id="btn-close-customizer">✕</button>
-    </div>
-
-    <!-- Target Selector -->
-    <div class="segmented-control">
-      <button class="segment-btn active" data-target="body">Body</button>
-      <button class="segment-btn" data-target="wheel">Wheel</button>
-      <button class="segment-btn" data-target="earphones">Earphones</button>
-      <button class="segment-btn" data-target="all">All</button>
-    </div>
-
-    <!-- Circular Color Wheel -->
-    <div class="color-wheel-wrapper">
-      <div class="wheel-canvas-container" id="wheel-container">
-        <canvas id="color-wheel-canvas" width="180" height="180"></canvas>
-        <div class="wheel-handle" id="wheel-handle"></div>
-      </div>
-
-      <!-- Brightness / Lightness Slider -->
-      <div class="slider-container">
-        <div class="slider-label">
-          <span>Brightness</span>
-          <span id="lightness-val">90%</span>
-        </div>
-        <input type="range" id="lightness-slider" class="custom-slider" min="0" max="100" value="90" />
-      </div>
-
-      <!-- Color Info Bar -->
-      <div class="color-info-bar">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="color-preview-box" id="color-preview" style="background-color: #f5f5f7;"></div>
-          <span class="hex-value" id="hex-label">#F5F5F7</span>
-        </div>
-        <input type="color" id="native-color" class="native-color-input" value="#f5f5f7" title="Custom color picker" />
-      </div>
-    </div>
-
-    <!-- Curated Iconic Presets -->
-    <div class="preset-section">
-      <div class="section-label">Iconic Editions</div>
-      <div class="presets-grid">
-        <div class="preset-chip" data-color="#f5f5f7" style="background: #f5f5f7;">
-          <span style="color: #333;">Classic</span>
-        </div>
-        <div class="preset-chip" data-color="#111111" style="background: #111111; border-color: #e50914;">
-          <span style="color: #ff3333;">U2</span>
-        </div>
-        <div class="preset-chip" data-color="#7d7e80" style="background: #7d7e80;">
-          <span>Silver</span>
-        </div>
-        <div class="preset-chip" data-color="#007aff" style="background: #007aff;">
-          <span>Atomic</span>
-        </div>
-        <div class="preset-chip" data-color="#8a2be2" style="background: #8a2be2;">
-          <span>Cyber</span>
-        </div>
-        <div class="preset-chip" data-color="#ff5722" style="background: #ff5722;">
-          <span>Sunset</span>
-        </div>
-        <div class="preset-chip" data-color="#30d158" style="background: #30d158;">
-          <span>Mint</span>
-        </div>
-        <div class="preset-chip" data-color="#d4af37" style="background: #d4af37;">
-          <span>Gold</span>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- 4. Interactive Virtual Click Wheel Floating Controller -->
-  <div class="clickwheel-controller" id="clickwheel-controller">
-    <div class="wheel-outer" id="virtual-wheel">
-      <button class="wheel-btn btn-menu" id="ctrl-menu">MENU</button>
-      <button class="wheel-btn btn-prev" id="ctrl-prev">|◀◀</button>
-      <button class="wheel-btn btn-next" id="ctrl-next">▶▶|</button>
-      <button class="wheel-btn btn-play" id="ctrl-play">▶❚❚</button>
-      <button class="wheel-center-btn" id="ctrl-center">SELECT</button>
-    </div>
-  </div>
-
-  <!-- 5. Bottom Camera View Presets (Desktop) -->
-  <div class="scene-dock desktop-only">
-    <button class="dock-btn active" data-view="studio">Studio</button>
-    <div class="divider"></div>
-    <button class="dock-btn" data-view="front">Front (Screen)</button>
-    <div class="divider"></div>
-    <button class="dock-btn" data-view="back">Back (Chrome)</button>
-    <div class="divider"></div>
-    <button class="dock-btn" data-view="top">Top (Jack)</button>
-    <div class="divider"></div>
-    <button class="dock-btn" data-view="earphones">Earphones</button>
-  </div>
-
-  <!-- 6. Mobile Bottom Action Bar -->
-  <nav class="mobile-action-bar mobile-only">
-    <button class="mobile-nav-btn" id="btn-mobile-colors">
-      <span class="icon">🎨</span>
-      <span class="label">Colors</span>
-    </button>
-    <button class="mobile-nav-btn active" id="btn-mobile-wheel">
-      <span class="icon">🎛️</span>
-      <span class="label">Wheel</span>
-    </button>
-    <button class="mobile-nav-btn" id="btn-mobile-plug">
-      <span class="icon" id="mobile-plug-icon">🔌</span>
-      <span class="label" id="mobile-plug-label">Plug</span>
-    </button>
-    <button class="mobile-nav-btn" id="btn-mobile-import">
-      <span class="icon">🎵</span>
-      <span class="label">Import</span>
-    </button>
-    <button class="mobile-nav-btn" id="btn-mobile-play">
-      <span class="icon" id="mobile-play-icon">▶️</span>
-      <span class="label">Play</span>
-    </button>
-  </nav>
-
-  <!-- 7. Settings Modal Dialog -->
-  <div id="settings-modal" class="modal-backdrop">
-    <div class="modal-window">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 1.2rem;">⚙️</span>
-          <h3>iPod Settings & Preferences</h3>
-        </div>
-        <button class="close-modal-btn" id="btn-close-settings">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">Mechanical Click Sound</div>
-            <div class="setting-desc">Authentic piezo sound when spinning the wheel</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setting-clicker" checked>
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">Haptic Feedback</div>
-            <div class="setting-desc">Tactile vibration on wheel notches (mobile only)</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setting-haptics" checked>
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">Turntable Showcase Auto-Rotate</div>
-            <div class="setting-desc">Smooth 360° museum exhibit spin</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setting-autorotate">
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">Wired Earphones Visibility</div>
-            <div class="setting-desc">Display the classic white earbuds beside iPod</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setting-earphones" checked>
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">Stage Lighting</div>
-            <div class="setting-desc">Dark Studio vs Keynote Stage</div>
-          </div>
-          <select id="setting-theme" class="select-input">
-            <option value="dark">Dark Studio</option>
-            <option value="keynote">Keynote Stage</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-primary-modal" id="btn-save-settings">Done</button>
       </div>
     </div>
   </div>
