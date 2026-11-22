@@ -17,6 +17,7 @@ class iPodAudioEngine {
     this.audioElement = new Audio();
     this.audioElement.preload = 'auto';
     this.audioElement.crossOrigin = 'anonymous';
+    this.audioElement.muted = true; // Muted by default until earphones are plugged in!
     this.mediaSourceNode = null;
 
     // Playlist
@@ -70,7 +71,10 @@ class iPodAudioEngine {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioCtx();
       this.gainNode = this.ctx.createGain();
-      this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+
+      // Start muted if headphones not connected
+      const initialGain = this.isHeadphonesPlugged ? this.volume : 0;
+      this.gainNode.gain.setValueAtTime(initialGain, this.ctx.currentTime);
 
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 64;
@@ -165,7 +169,7 @@ class iPodAudioEngine {
       if (sum > 0) return this.freqArray;
     }
 
-    // Lively simulated frequency spectrum for synth playback or silent tracks
+    // Lively simulated frequency spectrum when music is playing
     if (this.isPlaying) {
       const t = Date.now() * 0.007;
       const fakeData = new Uint8Array(16);
@@ -333,13 +337,34 @@ class iPodAudioEngine {
     } catch (e) {}
   }
 
+  // --- Headphone Plug State Management ---
   setHeadphonesPlugged(plugged) {
     this.isHeadphonesPlugged = plugged;
+    this.init();
+
     if (plugged) {
       this.playPlugIn();
+      // Unmute and restore volume for headphone listening
+      if (this.gainNode && this.ctx) {
+        this.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      }
+      this.audioElement.muted = false;
+
+      // Start music automatically if not already playing
+      if (!this.isPlaying) {
+        this.toggleMusic(true);
+      }
     } else {
       this.playUnplug();
-      // Unplugging headphones automatically pauses music
+      // Mute audio output immediately when headphones are removed
+      if (this.gainNode && this.ctx) {
+        this.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+      }
+      this.audioElement.muted = true;
+
+      // Pause playback
       if (this.isPlaying) {
         this.toggleMusic(false);
       }
@@ -514,8 +539,16 @@ class iPodAudioEngine {
 
   setVolume(vol) {
     this.volume = Math.max(0, Math.min(1.0, vol));
-    if (this.gainNode && this.ctx) {
-      this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+    if (this.isHeadphonesPlugged) {
+      if (this.gainNode && this.ctx) {
+        this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      }
+      this.audioElement.muted = false;
+    } else {
+      if (this.gainNode && this.ctx) {
+        this.gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+      }
+      this.audioElement.muted = true;
     }
     this.audioElement.volume = this.volume;
     return this.volume;
@@ -536,6 +569,7 @@ class iPodAudioEngine {
       if (!this.isPlaying) return;
       const notes = chordNotes[step % chordNotes.length];
       const now = this.ctx.currentTime;
+      const currentGain = this.isHeadphonesPlugged ? this.volume : 0;
 
       notes.forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
@@ -543,7 +577,7 @@ class iPodAudioEngine {
         osc.type = idx % 2 === 0 ? "triangle" : "sine";
         osc.frequency.setValueAtTime(freq, now);
 
-        gain.gain.setValueAtTime(0.04 * this.volume, now);
+        gain.gain.setValueAtTime(0.04 * currentGain, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
 
         osc.connect(gain);
@@ -557,7 +591,7 @@ class iPodAudioEngine {
       const bassGain = this.ctx.createGain();
       bassOsc.type = "sine";
       bassOsc.frequency.setValueAtTime(notes[0] / 2, now);
-      bassGain.gain.setValueAtTime(0.08 * this.volume, now);
+      bassGain.gain.setValueAtTime(0.08 * currentGain, now);
       bassGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
       bassOsc.connect(bassGain);
       bassGain.connect(this.analyser || this.gainNode || this.ctx.destination);

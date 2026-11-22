@@ -21,6 +21,10 @@ const PLUG_HOVER_Y = 1.25;     // Clean hover height with visible headspace
 let isPluggedIn = false;
 let isPlugAnimating = false;
 
+// Procedural Pixel-Perfect Click Wheel
+let clickWheelMesh, clickWheelCanvas, clickWheelCtx, clickWheelTexture;
+let activeWheelButtonTimeout = null;
+
 // Toast Notification
 function showToast(message) {
   const toast = document.getElementById('toast');
@@ -31,6 +35,33 @@ function showToast(message) {
   toast._timeout = setTimeout(() => {
     toast.classList.remove('active');
   }, 2400);
+}
+
+// YouTube-Style "Wear Headphones" Immersive Audio Modal
+function showImmersiveModal() {
+  const modal = document.getElementById('immersive-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+
+  clearTimeout(modal._timeout);
+  modal._timeout = setTimeout(() => {
+    modal.classList.remove('active');
+  }, 4500);
+}
+
+function setupImmersiveModal() {
+  const modal = document.getElementById('immersive-modal');
+  const btn = document.getElementById('immersive-btn');
+  if (btn && modal) {
+    btn.addEventListener('click', () => {
+      modal.classList.remove('active');
+    });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    });
+  }
 }
 
 // --- Initialize Scene ---
@@ -78,8 +109,11 @@ function init() {
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  // Create Headphone Jack Assembly (3.5mm Plug + White Cable)
+  // Pristine Polished 3.5mm Headphone Jack Assembly
   createHeadphoneJackAssembly();
+
+  // Procedural Pixel-Perfect Click Wheel
+  createProceduralClickWheel();
 
   // Load iPod Model
   loadIpodModel();
@@ -88,6 +122,7 @@ function init() {
   setupDirectClickWheel();
   setupPlugInteraction();
   setupMP3DropImporter();
+  setupImmersiveModal();
 
   // Audio Sync
   window.addEventListener('ipod-timeupdate', (e) => {
@@ -142,7 +177,7 @@ function setupLighting() {
   scene.add(fillLight);
 
   // Top light illuminating the headphone jack opening and plug
-  const topLight = new THREE.DirectionalLight(0xffffff, 1.8);
+  const topLight = new THREE.DirectionalLight(0xffffff, 2.0);
   topLight.position.set(0, 4.5, 1.2);
   scene.add(topLight);
 
@@ -183,59 +218,99 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Headphone Jack Assembly (3.5mm Plug + White Cable) ---
+// --- Pristine Polished 3.5mm Headphone Jack Assembly (100% Corrosion-Free) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // 1. Metal TRS Pin (Gold with black bands)
-  const pinMat = new THREE.MeshStandardMaterial({
-    color: 0xf5c342,
-    metalness: 0.95,
-    roughness: 0.15
+  // Gleaming mirror-polished Apple nickel/chrome metal
+  const chromeMat = new THREE.MeshStandardMaterial({
+    color: 0xf5f8fc,
+    metalness: 0.98,
+    roughness: 0.06
   });
-  const pinGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.15, 24);
-  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-  pinMesh.position.y = -0.075;
-  headphoneJackPlug.add(pinMesh);
 
-  // Black insulator bands
-  const bandMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-  const bandGeo = new THREE.CylinderGeometry(0.033, 0.033, 0.012, 24);
-  const band1 = new THREE.Mesh(bandGeo, bandMat);
-  band1.position.y = -0.05;
-  headphoneJackPlug.add(band1);
-  const band2 = new THREE.Mesh(bandGeo, bandMat);
-  band2.position.y = -0.10;
-  headphoneJackPlug.add(band2);
+  // Sharp, clean matte dark polymer insulator rings
+  const insulatorMat = new THREE.MeshStandardMaterial({
+    color: 0x18191e,
+    roughness: 0.8,
+    metalness: 0.1
+  });
 
-  // 2. White Plastic Grip Barrel
+  // 1. Tapered Bullet Tip (Smooth conical tip with rounded dome bottom)
+  const tipDomeGeo = new THREE.SphereGeometry(0.024, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  const tipDome = new THREE.Mesh(tipDomeGeo, chromeMat);
+  tipDome.position.y = -0.165;
+  headphoneJackPlug.add(tipDome);
+
+  const tipConeGeo = new THREE.CylinderGeometry(0.029, 0.024, 0.030, 32);
+  const tipCone = new THREE.Mesh(tipConeGeo, chromeMat);
+  tipCone.position.y = -0.150;
+  headphoneJackPlug.add(tipCone);
+
+  // Detent Waist Groove (latching groove)
+  const waistGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.014, 32);
+  const waist = new THREE.Mesh(waistGeo, chromeMat);
+  waist.position.y = -0.128;
+  headphoneJackPlug.add(waist);
+
+  // Insulator Ring 1
+  const ring1Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  const ring1 = new THREE.Mesh(ring1Geo, insulatorMat);
+  ring1.position.y = -0.117;
+  headphoneJackPlug.add(ring1);
+
+  // Ring Conductor (Right Audio)
+  const ringConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.036, 32);
+  const ringConductor = new THREE.Mesh(ringConductorGeo, chromeMat);
+  ringConductor.position.y = -0.095;
+  headphoneJackPlug.add(ringConductor);
+
+  // Insulator Ring 2
+  const ring2Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  const ring2 = new THREE.Mesh(ring2Geo, insulatorMat);
+  ring2.position.y = -0.073;
+  headphoneJackPlug.add(ring2);
+
+  // Sleeve Conductor (Ground)
+  const sleeveGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.065, 32);
+  const sleeve = new THREE.Mesh(sleeveGeo, chromeMat);
+  sleeve.position.y = -0.037;
+  headphoneJackPlug.add(sleeve);
+
+  // Polished chrome collar transition
+  const collarBevelGeo = new THREE.CylinderGeometry(0.035, 0.030, 0.008, 32);
+  const collarBevel = new THREE.Mesh(collarBevelGeo, chromeMat);
+  collarBevel.position.y = -0.004;
+  headphoneJackPlug.add(collarBevel);
+
+  // 2. Pure White Polycarbonate Grip Barrel
   const gripMat = new THREE.MeshStandardMaterial({
-    color: 0xf7f7fa,
-    roughness: 0.25,
-    metalness: 0.05
+    color: 0xfcfdff,
+    roughness: 0.18,
+    metalness: 0.02
   });
-  const gripGeo = new THREE.CylinderGeometry(0.062, 0.062, 0.22, 24);
+  const gripGeo = new THREE.CylinderGeometry(0.058, 0.058, 0.22, 32);
   const gripMesh = new THREE.Mesh(gripGeo, gripMat);
   gripMesh.position.y = 0.11;
   headphoneJackPlug.add(gripMesh);
 
   // 3. Strain Relief Collar
-  const collarGeo = new THREE.CylinderGeometry(0.042, 0.06, 0.12, 16);
-  const collarMesh = new THREE.Mesh(collarGeo, gripMat);
-  collarMesh.position.y = 0.28;
-  headphoneJackPlug.add(collarMesh);
+  const reliefGeo = new THREE.CylinderGeometry(0.038, 0.056, 0.10, 24);
+  const reliefMesh = new THREE.Mesh(reliefGeo, gripMat);
+  reliefMesh.position.y = 0.26;
+  headphoneJackPlug.add(reliefMesh);
 
   // 4. Smooth Earphone Cable extending upward into the studio space
   const cableCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0.34, 0),
+    new THREE.Vector3(0, 0.31, 0),
     new THREE.Vector3(0.02, 0.55, -0.05),
     new THREE.Vector3(-0.06, 0.85, -0.15),
     new THREE.Vector3(-0.18, 1.35, -0.3)
   ]);
   const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.022, 8, false);
   const cableMat = new THREE.MeshStandardMaterial({
-    color: 0xeeeeee,
-    roughness: 0.4
+    color: 0xf0f2f5,
+    roughness: 0.35
   });
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
@@ -243,6 +318,177 @@ function createHeadphoneJackAssembly() {
   // Position hovering directly above the headphone jack opening
   headphoneJackPlug.position.set(PLUG_HOLE_X, PLUG_HOVER_Y, PLUG_HOLE_Z);
   scene.add(headphoneJackPlug);
+}
+
+// --- Procedural Razor-Sharp Vector Click Wheel (100% Concentric & Aligned) ---
+function createProceduralClickWheel() {
+  clickWheelCanvas = document.createElement('canvas');
+  clickWheelCanvas.width = 1024;
+  clickWheelCanvas.height = 1024;
+  clickWheelCtx = clickWheelCanvas.getContext('2d');
+
+  renderClickWheelTexture();
+
+  clickWheelTexture = new THREE.CanvasTexture(clickWheelCanvas);
+  clickWheelTexture.colorSpace = THREE.SRGBColorSpace;
+  clickWheelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  // Circular Click Wheel overlay mesh positioned right on the front casing
+  const geo = new THREE.CircleGeometry(0.375, 64);
+  const mat = new THREE.MeshBasicMaterial({
+    map: clickWheelTexture,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true
+  });
+
+  clickWheelMesh = new THREE.Mesh(geo, mat);
+  clickWheelMesh.position.set(0, WHEEL_CENTER_Y, 0.1402);
+  clickWheelMesh.renderOrder = 3;
+  scene.add(clickWheelMesh);
+}
+
+function renderClickWheelTexture(pressedButton = null) {
+  const ctx = clickWheelCtx;
+  const w = clickWheelCanvas.width;
+  const h = clickWheelCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const outerR = 492;
+  const innerR = 176;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // 1. Outer Ring Base (Smooth Apple Classic Matte Grey)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.fillStyle = '#e4e6ea';
+  ctx.fill();
+
+  // Subtle outer edge shadow
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Subtle inner seam shadow
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 2. High-Contrast, Razor-Sharp Button Typography & Icons
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // TOP: MENU
+  const menuY = cy - 338;
+  ctx.font = 'bold 50px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillStyle = pressedButton === 'menu' ? '#8e9fb8' : '#ffffff';
+  ctx.fillText('MENU', cx, menuY);
+
+  // BOTTOM: PLAY/PAUSE
+  const playY = cy + 338;
+  ctx.fillStyle = pressedButton === 'play' ? '#8e9fb8' : '#ffffff';
+  drawPlayPauseIcon(ctx, cx, playY, 32);
+
+  // LEFT: PREV |<<
+  const prevX = cx - 338;
+  ctx.fillStyle = pressedButton === 'prev' ? '#8e9fb8' : '#ffffff';
+  drawPrevIcon(ctx, prevX, cy, 32);
+
+  // RIGHT: NEXT >>|
+  const nextX = cx + 338;
+  ctx.fillStyle = pressedButton === 'next' ? '#8e9fb8' : '#ffffff';
+  drawNextIcon(ctx, nextX, cy, 32);
+
+  ctx.restore();
+
+  // 3. Concentric Center Button (SELECT)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR - 2, 0, Math.PI * 2);
+  ctx.fillStyle = pressedButton === 'select' ? '#e0e3ea' : '#f4f5f8';
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function flashWheelButton(btn) {
+  renderClickWheelTexture(btn);
+  if (clickWheelTexture) clickWheelTexture.needsUpdate = true;
+  clearTimeout(activeWheelButtonTimeout);
+  activeWheelButtonTimeout = setTimeout(() => {
+    renderClickWheelTexture(null);
+    if (clickWheelTexture) clickWheelTexture.needsUpdate = true;
+  }, 120);
+}
+
+function drawPlayPauseIcon(ctx, x, y, size) {
+  // Play triangle ▶
+  ctx.beginPath();
+  ctx.moveTo(x - size + 4, y - size / 2);
+  ctx.lineTo(x - size / 4, y);
+  ctx.lineTo(x - size + 4, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Pause bars ❚❚
+  const barW = size * 0.18;
+  const barH = size;
+  ctx.fillRect(x + 4, y - barH / 2, barW, barH);
+  ctx.fillRect(x + 4 + barW + 5, y - barH / 2, barW, barH);
+}
+
+function drawPrevIcon(ctx, x, y, size) {
+  // Vertical bar |
+  const barW = size * 0.18;
+  const barH = size;
+  ctx.fillRect(x - size / 2 - 2, y - barH / 2, barW, barH);
+
+  // Double triangle <<
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y - size / 2);
+  ctx.lineTo(x - size / 3 + 2, y);
+  ctx.lineTo(x + 4, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.55, y - size / 2);
+  ctx.lineTo(x + size * 0.15, y);
+  ctx.lineTo(x + size * 0.55, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawNextIcon(ctx, x, y, size) {
+  // Double triangle >>
+  ctx.beginPath();
+  ctx.moveTo(x - size * 0.55, y - size / 2);
+  ctx.lineTo(x - size * 0.15, y);
+  ctx.lineTo(x - size * 0.55, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x - 4, y - size / 2);
+  ctx.lineTo(x + size / 3 - 2, y);
+  ctx.lineTo(x - 4, y + size / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Vertical bar |
+  const barW = size * 0.18;
+  const barH = size;
+  ctx.fillRect(x + size / 2 - barW + 2, y - barH / 2, barW, barH);
 }
 
 // --- Load Model with 10x Scale Fix, Opaque Casing, & Dynamic Screen ---
@@ -292,13 +538,11 @@ function loadIpodModel() {
           parentName.includes('Port') || name.includes('Port') ||
           parentName.includes('Charging') || name.includes('Charging')
         ) {
-          // Hide internal port geometries so they never bleed or show
           child.visible = false;
         }
         // 3. Solid, Opaque iPod Casing (Body & Switches)
         else {
           if (child.material) {
-            // Remove glass/transmission from GLTF material so casing is 100% solid white
             child.material = child.material.clone();
             child.material.transparent = false;
             child.material.transmission = 0;
@@ -323,7 +567,7 @@ function loadIpodModel() {
   });
 }
 
-// --- Headphone Jack Insertion Animation ---
+// --- Headphone Jack Insertion Animation (Smooth Ease-in-Out Spring) ---
 function toggleHeadphonePlug() {
   if (isPlugAnimating) return;
   isPlugAnimating = true;
@@ -331,12 +575,13 @@ function toggleHeadphonePlug() {
 
   const targetY = isPluggedIn ? PLUG_INSERTED_Y : PLUG_HOVER_Y;
   const startY = headphoneJackPlug.position.y;
-  const duration = 500;
+  const duration = 420;
   const startTime = Date.now();
 
   function animatePlugStep() {
     const elapsed = Date.now() - startTime;
     const t = Math.min(1.0, elapsed / duration);
+    // Smooth cubic bezier easing
     const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     headphoneJackPlug.position.y = THREE.MathUtils.lerp(startY, targetY, ease);
@@ -350,14 +595,15 @@ function toggleHeadphonePlug() {
       screenTexture.needsUpdate = true;
 
       if (isPluggedIn) {
-        showToast("🎧 Earphones plugged in!");
+        showToast("🎧 Earphones connected!");
+        showImmersiveModal();
         if (!audioEngine.isPlaying) {
           audioEngine.toggleMusic(true);
           screenRenderer.setTrack(audioEngine.getCurrentTrack(), true);
           screenTexture.needsUpdate = true;
         }
       } else {
-        showToast("🔌 Earphones unplugged.");
+        showToast("🔌 Earphones disconnected — playback paused");
         screenRenderer.setTrack(audioEngine.getCurrentTrack(), false);
         screenTexture.needsUpdate = true;
       }
@@ -411,13 +657,18 @@ function setupDirectClickWheel() {
   let hasDragged = false;
 
   function getRaycastHit(e) {
-    if (!ipodGroup) return null;
+    if (!ipodGroup && !clickWheelMesh) return null;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     mouse.x = (clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(ipodGroup.children, true);
+
+    const targets = [];
+    if (clickWheelMesh) targets.push(clickWheelMesh);
+    if (ipodGroup) targets.push(...ipodGroup.children);
+
+    const intersects = raycaster.intersectObjects(targets, true);
     return intersects.length ? intersects[0] : null;
   }
 
@@ -505,7 +756,8 @@ function setupDirectClickWheel() {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       // 1. Center Button (SELECT)
-      if (dist < 0.13) {
+      if (dist < 0.135) {
+        flashWheelButton('select');
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
         if (res) {
@@ -516,13 +768,21 @@ function setupDirectClickWheel() {
             const track = audioEngine.selectTrackById(res.trackId);
             screenRenderer.setTrack(track, true);
           } else if (res.action === 'togglePlay') {
-            const isPlaying = audioEngine.toggleMusic();
-            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+            if (!isPluggedIn) {
+              toggleHeadphonePlug();
+            } else {
+              const isPlaying = audioEngine.toggleMusic();
+              screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+            }
           } else if (res.action === 'shuffle') {
             audioEngine.playDriveSpinUp();
-            const isPlaying = audioEngine.toggleMusic(true);
-            screenRenderer.viewStack.push('nowPlaying');
-            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+            if (!isPluggedIn) {
+              toggleHeadphonePlug();
+            } else {
+              const isPlaying = audioEngine.toggleMusic(true);
+              screenRenderer.viewStack.push('nowPlaying');
+              screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+            }
           }
         }
         screenTexture.needsUpdate = true;
@@ -535,21 +795,29 @@ function setupDirectClickWheel() {
 
         if (angleDeg >= 45 && angleDeg <= 135) {
           // TOP: MENU
+          flashWheelButton('menu');
           audioEngine.playButtonPress();
           screenRenderer.goBack();
           screenTexture.needsUpdate = true;
         } else if (angleDeg <= -45 && angleDeg >= -135) {
           // BOTTOM: PLAY / PAUSE
-          const isPlaying = audioEngine.toggleMusic();
-          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-          screenTexture.needsUpdate = true;
+          flashWheelButton('play');
+          if (!isPluggedIn) {
+            toggleHeadphonePlug();
+          } else {
+            const isPlaying = audioEngine.toggleMusic();
+            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+            screenTexture.needsUpdate = true;
+          }
         } else if (Math.abs(angleDeg) > 135) {
           // LEFT: PREV TRACK
+          flashWheelButton('prev');
           const track = audioEngine.prevTrack();
           screenRenderer.setTrack(track, audioEngine.isPlaying);
           screenTexture.needsUpdate = true;
         } else if (Math.abs(angleDeg) < 45) {
           // RIGHT: NEXT TRACK
+          flashWheelButton('next');
           const track = audioEngine.nextTrack();
           screenRenderer.setTrack(track, audioEngine.isPlaying);
           screenTexture.needsUpdate = true;
@@ -619,6 +887,11 @@ function handleAudioFilesImport(files) {
   audioEngine.importAudioFiles(validFiles).then((importedTracks) => {
     screenRenderer.setTracks(audioEngine.tracks);
     const firstTrack = importedTracks[0];
+
+    // Connect earphones if disconnected so sound starts
+    if (!isPluggedIn) {
+      toggleHeadphonePlug();
+    }
 
     // Play immediately
     audioEngine.selectTrackById(firstTrack.id);
