@@ -241,18 +241,18 @@ export class iPodScreenRenderer {
 
     // Headphones icon (if plugged)
     if (this.isHeadphonesPlugged) {
-      ctx.font = '16px -apple-system, sans-serif';
+      ctx.font = '16px sans-serif';
       ctx.fillText('🎧', 40, 28);
     }
 
     // Screen Title (Center)
-    let title = 'iPod';
+    let title = 'Player';
     const view = this.getCurrentView();
     if (view === 'music') title = 'Music';
     else if (view === 'songs') title = 'Songs';
     else if (view === 'nowPlaying') title = 'Now Playing';
 
-    ctx.font = 'bold 21px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+    ctx.font = 'bold 21px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(title, w / 2, 29);
 

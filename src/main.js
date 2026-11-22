@@ -10,10 +10,22 @@ let ipodGroup;
 let screenTexture, screenRenderer;
 let bodyMaterial, wheelMaterial, backMaterial;
 
+// Camera Target (Zoomed closely onto the device)
 const cameraTarget = {
-  pos: new THREE.Vector3(0, 0, 2.7),
-  target: new THREE.Vector3(0, 0, 0)
+  pos: new THREE.Vector3(0, -0.05, 1.95),
+  target: new THREE.Vector3(0, -0.05, 0)
 };
+
+function updateCameraZoom() {
+  const aspect = window.innerWidth / window.innerHeight;
+  if (aspect < 1) {
+    // Mobile Portrait: zoom comfortably to fit device width
+    cameraTarget.pos.set(0, -0.05, Math.max(2.1, 1.95 / aspect * 0.62));
+  } else {
+    // Desktop Landscape: close, prominent zoom
+    cameraTarget.pos.set(0, -0.05, 1.95);
+  }
+}
 
 // Toast Notification
 function showToast(message) {
@@ -24,7 +36,7 @@ function showToast(message) {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove('active');
-  }, 2800);
+  }, 2600);
 }
 
 // --- Initialize Scene ---
@@ -37,8 +49,9 @@ function init() {
   scene.fog = new THREE.FogExp2(0x0a0a0c, 0.08);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 50);
-  camera.position.set(0, 0.2, 3.8); // Entrance position
+  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 50);
+  camera.position.set(0, 0.1, 3.4); // Entrance position
+  updateCameraZoom();
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -50,21 +63,21 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
-  // Full 360° Free Orbit Controls
+  // Free 360° Orbit Controls
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
-  controls.minDistance = 0.8;
-  controls.maxDistance = 6.0;
+  controls.minDistance = 0.7;
+  controls.maxDistance = 5.0;
   controls.minPolarAngle = 0.01;
   controls.maxPolarAngle = Math.PI - 0.01;
-  controls.target.set(0, 0, 0);
+  controls.target.copy(cameraTarget.target);
 
   // Lighting & Stage
   setupLighting();
   createFloor();
 
-  // Screen Engine
+  // Dynamic LCD Screen Engine
   screenRenderer = new iPodScreenRenderer();
   screenRenderer.setTracks(audioEngine.tracks);
   screenRenderer.render();
@@ -72,15 +85,15 @@ function init() {
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  // Load iPod Only
+  // Load Model
   loadIpodModel();
 
-  // Setup Interaction
+  // Interaction
   setupWelcomeScreen();
-  setupDirect3DiPodInteraction();
+  setupDirectClickWheel();
   setupMP3DropImporter();
 
-  // Audio Time Updates sync to screen
+  // Audio Sync
   window.addEventListener('ipod-timeupdate', (e) => {
     screenRenderer.setTimeUpdate(e.detail.currentTime, e.detail.duration, e.detail.progress);
     screenTexture.needsUpdate = true;
@@ -90,7 +103,7 @@ function init() {
     document.getElementById('mp3-file-input').click();
   });
 
-  // Window Resize
+  // Responsive Resizing
   window.addEventListener('resize', onWindowResize);
 
   // Animation Loop
@@ -99,7 +112,7 @@ function init() {
 
 // --- Lighting ---
 function setupLighting() {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
   scene.add(ambientLight);
 
   const keyLight = new THREE.SpotLight(0xffffff, 4.5);
@@ -125,9 +138,9 @@ function setupLighting() {
   scene.add(bounceLight);
 }
 
-// --- Minimal Floor Shadow ---
+// --- Floor Shadow ---
 function createFloor() {
-  const floorGeo = new THREE.PlaneGeometry(24, 24);
+  const floorGeo = new THREE.PlaneGeometry(20, 20);
   const floorMat = new THREE.MeshStandardMaterial({
     color: 0x0c0c10,
     roughness: 0.75,
@@ -164,13 +177,13 @@ function createFloor() {
   scene.add(contactShadow);
 }
 
-// --- Load iPod Model ---
+// --- Load Model (Zero Logos) ---
 function loadIpodModel() {
   const loader = new GLTFLoader();
   const statusEl = document.getElementById('loader-status');
   const overlay = document.getElementById('loader-overlay');
 
-  statusEl.textContent = 'Loading iPod Classic...';
+  statusEl.textContent = 'Loading 3D Player...';
 
   loader.load('/models/ipod_classic.glb', (gltf) => {
     ipodGroup = gltf.scene;
@@ -231,7 +244,7 @@ function loadIpodModel() {
   }, (xhr) => {
     if (xhr.lengthComputable) {
       const pct = Math.round((xhr.loaded / xhr.total) * 100);
-      statusEl.textContent = `Loading iPod (${pct}%)...`;
+      statusEl.textContent = `Loading (${pct}%)...`;
     }
   }, (error) => {
     statusEl.textContent = 'Failed to load model.';
@@ -250,21 +263,27 @@ function setupWelcomeScreen() {
     audioEngine.playClick();
 
     welcomeOverlay.classList.add('hidden');
-    // Start music
+    // Zoom in closely
+    updateCameraZoom();
+    // Start audio
     audioEngine.toggleMusic(true);
     screenRenderer.setTrack(audioEngine.getCurrentTrack(), true);
     screenTexture.needsUpdate = true;
   });
 }
 
-// --- Direct 3D Raycasting & Full Interactive Click Wheel On The Model ---
-function setupDirect3DiPodInteraction() {
+// --- Authentic Direct 3D Rotary Click Wheel Interaction ---
+function setupDirectClickWheel() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-  let isDirectDragging = false;
-  let lastDragAngle = 0;
-  let accumulated3DAngle = 0;
+  let isWheelDragging = false;
+  let lastWheelAngle = 0;
+  let accumulatedAngle = 0;
+  let dragStartPoint = new THREE.Vector2();
+  let hasDragged = false;
+
+  const WHEEL_CENTER_Y = -0.42;
 
   function getRaycastHit(e) {
     if (!ipodGroup) return null;
@@ -277,30 +296,88 @@ function setupDirect3DiPodInteraction() {
     return intersects.length ? intersects[0] : null;
   }
 
-  function getWheelAngleFromHit(hit) {
-    const p = hit.point;
-    return Math.atan2(p.y - (-0.42), p.x);
+  function getAngleOnWheel(p) {
+    return Math.atan2(p.y - WHEEL_CENTER_Y, p.x);
   }
 
-  // Pointer Down on 3D Object
+  // Pointer Down on the 3D Player
   window.addEventListener('pointerdown', (e) => {
     const hit = getRaycastHit(e);
     if (!hit) return;
 
     const p = hit.point;
     const dx = p.x;
-    const dy = p.y - (-0.42);
+    const dy = p.y - WHEEL_CENTER_Y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // 3D Click Wheel area (Y from -0.82 to -0.05, front Z > 0.05)
-    if (dist <= 0.38 && p.z > 0.05) {
+    // Click Wheel zone: R <= 0.40 on front face (Z > 0.05)
+    if (dist <= 0.40 && p.z > 0.05) {
+      // Lock orbit controls so dragging spins the wheel, not the camera!
       controls.enabled = false;
-      isDirectDragging = true;
-      lastDragAngle = Math.atan2(dy, dx);
-      accumulated3DAngle = 0;
+      isWheelDragging = true;
+      hasDragged = false;
+      dragStartPoint.set(e.clientX, e.clientY);
+      lastWheelAngle = getAngleOnWheel(p);
+      accumulatedAngle = 0;
+    }
+  });
 
-      // Center button click (SELECT)
-      if (dist < 0.12) {
+  // Pointer Move (Rotary Dragging)
+  window.addEventListener('pointermove', (e) => {
+    if (!isWheelDragging) return;
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const movedDist = Math.hypot(clientX - dragStartPoint.x, clientY - dragStartPoint.y);
+    if (movedDist > 6) {
+      hasDragged = true;
+    }
+
+    const hit = getRaycastHit(e);
+    if (!hit) return;
+
+    const currentAngle = getAngleOnWheel(hit.point);
+    let delta = currentAngle - lastWheelAngle;
+
+    // Normalize wrap around [-PI, PI]
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+
+    accumulatedAngle += delta;
+    lastWheelAngle = currentAngle;
+
+    // ~14 degrees per mechanical click notch
+    const notch = Math.PI / 13;
+    if (Math.abs(accumulatedAngle) >= notch) {
+      // Clockwise (delta < 0 in standard cartesian with inverted Y) -> scroll down
+      // In atan2(dy, dx), clockwise from top goes angle decreasing
+      const step = delta < 0 ? 1 : -1;
+      accumulatedAngle = 0;
+
+      audioEngine.playClick();
+      screenRenderer.scroll(step);
+      screenTexture.needsUpdate = true;
+    }
+  });
+
+  // Pointer Up / Release: Handle discrete button click if user tapped without spinning
+  window.addEventListener('pointerup', (e) => {
+    if (!isWheelDragging) return;
+    isWheelDragging = false;
+    controls.enabled = true;
+
+    // If it was a tap / click (not a rotary spin)
+    if (!hasDragged) {
+      const hit = getRaycastHit(e);
+      if (!hit) return;
+
+      const p = hit.point;
+      const dx = p.x;
+      const dy = p.y - WHEEL_CENTER_Y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // 1. Center Button (SELECT)
+      if (dist < 0.13) {
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
         if (res && res.action === 'playTrack') {
@@ -311,82 +388,46 @@ function setupDirect3DiPodInteraction() {
           screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
         }
         screenTexture.needsUpdate = true;
+        return;
+      }
+
+      // 2. Outer Ring Buttons: MENU, PLAY/PAUSE, PREV, NEXT
+      if (dist >= 0.14 && dist <= 0.40) {
+        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        if (angleDeg >= 45 && angleDeg <= 135) {
+          // TOP: MENU
+          audioEngine.playButtonPress();
+          screenRenderer.goBack();
+          screenTexture.needsUpdate = true;
+        } else if (angleDeg <= -45 && angleDeg >= -135) {
+          // BOTTOM: PLAY / PAUSE
+          const isPlaying = audioEngine.toggleMusic();
+          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+          screenTexture.needsUpdate = true;
+        } else if (Math.abs(angleDeg) > 135) {
+          // LEFT: PREVIOUS TRACK
+          const track = audioEngine.prevTrack();
+          screenRenderer.setTrack(track, audioEngine.isPlaying);
+          screenTexture.needsUpdate = true;
+        } else if (Math.abs(angleDeg) < 45) {
+          // RIGHT: NEXT TRACK
+          const track = audioEngine.nextTrack();
+          screenRenderer.setTrack(track, audioEngine.isPlaying);
+          screenTexture.needsUpdate = true;
+        }
       }
     }
   });
 
-  window.addEventListener('pointermove', (e) => {
-    if (!isDirectDragging) return;
-    const hit = getRaycastHit(e);
-    if (!hit) return;
-
-    const currentAngle = getWheelAngleFromHit(hit);
-    let delta = currentAngle - lastDragAngle;
-
-    if (delta > Math.PI) delta -= Math.PI * 2;
-    if (delta < -Math.PI) delta += Math.PI * 2;
-
-    accumulated3DAngle += delta;
-    lastDragAngle = currentAngle;
-
-    const notch = Math.PI / 12; // ~15 degrees
-    if (Math.abs(accumulated3DAngle) >= notch) {
-      const step = Math.sign(accumulated3DAngle);
-      accumulated3DAngle = 0;
-      audioEngine.playClick();
-      screenRenderer.scroll(step);
-      screenTexture.needsUpdate = true;
-    }
-  });
-
-  function endDirectDrag() {
-    if (isDirectDragging) {
-      isDirectDragging = false;
+  window.addEventListener('pointercancel', () => {
+    if (isWheelDragging) {
+      isWheelDragging = false;
       controls.enabled = true;
     }
-  }
-
-  window.addEventListener('pointerup', endDirectDrag);
-  window.addEventListener('pointercancel', endDirectDrag);
-
-  // Outer Ring Button Clicks (MENU, PLAY, PREV, NEXT)
-  window.addEventListener('click', (e) => {
-    const hit = getRaycastHit(e);
-    if (!hit) return;
-
-    const p = hit.point;
-    const dx = p.x;
-    const dy = p.y - (-0.42);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist >= 0.14 && dist <= 0.38 && p.z > 0.05) {
-      const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-
-      if (angleDeg >= 45 && angleDeg <= 135) {
-        // TOP: MENU
-        audioEngine.playButtonPress();
-        screenRenderer.goBack();
-        screenTexture.needsUpdate = true;
-      } else if (angleDeg <= -45 && angleDeg >= -135) {
-        // BOTTOM: PLAY / PAUSE
-        const isPlaying = audioEngine.toggleMusic();
-        screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-        screenTexture.needsUpdate = true;
-      } else if (Math.abs(angleDeg) > 135) {
-        // LEFT: PREVIOUS
-        const track = audioEngine.prevTrack();
-        screenRenderer.setTrack(track, audioEngine.isPlaying);
-        screenTexture.needsUpdate = true;
-      } else if (Math.abs(angleDeg) < 45) {
-        // RIGHT: NEXT
-        const track = audioEngine.nextTrack();
-        screenRenderer.setTrack(track, audioEngine.isPlaying);
-        screenTexture.needsUpdate = true;
-      }
-    }
   });
 
-  // Direct mouse wheel scroll over the 3D iPod
+  // Direct mouse scroll wheel over the device
   window.addEventListener('wheel', (e) => {
     const hit = getRaycastHit(e);
     if (hit) {
@@ -438,19 +479,19 @@ function setupMP3DropImporter() {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Smooth entrance zoom to iPod
+  // Smooth camera zoom
   camera.position.lerp(cameraTarget.pos, 0.05);
   controls.target.lerp(cameraTarget.target, 0.05);
 
   controls.update();
 
-  // Subtle breathing float for the iPod
+  // Gentle breathing float
   if (ipodGroup) {
     const t = Date.now() * 0.001;
-    ipodGroup.position.y = Math.sin(t * 1.2) * 0.018;
+    ipodGroup.position.y = Math.sin(t * 1.2) * 0.015;
   }
 
-  // Update Dynamic Screen Canvas
+  // Update Screen Canvas
   if (screenRenderer.render()) {
     screenTexture.needsUpdate = true;
   }
@@ -463,6 +504,7 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  updateCameraZoom();
 }
 
 // Launch

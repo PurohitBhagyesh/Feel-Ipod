@@ -3,32 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Feel iPod</title>
+  <title>Classic 3D Music Player</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <!-- 3D WebGL Canvas (Pure iPod Experience) -->
+  <!-- 3D WebGL Canvas -->
   <div id="canvas-container"></div>
 
   <!-- Loading Screen -->
   <div id="loader-overlay">
     <div class="spinner"></div>
-    <div class="loader-text" id="loader-status">Loading iPod...</div>
+    <div class="loader-text" id="loader-status">Loading Player...</div>
   </div>
 
-  <!-- Minimal Drag & Drop Notification -->
+  <!-- Minimal Notification Toast -->
   <div id="toast" class="toast-pill"></div>
 
-  <!-- Hidden File Input for Audio Drop/Import -->
+  <!-- Hidden File Input for MP3 Import -->
   <input type="file" id="mp3-file-input" accept="audio/*" style="display: none;" />
 
-  <!-- Nostalgic Welcome Screen -->
+  <!-- Nostalgic Welcome Screen (No Logos) -->
   <div id="welcome-screen" class="welcome-overlay">
     <div class="welcome-content">
-      <div class="welcome-badge"> Retro Experience</div>
-      <h1 class="welcome-title">Let's feel the iPod nostalgic</h1>
+      <div class="welcome-badge">Classic MP3 Player</div>
+      <h1 class="welcome-title">Let's feel the nostalgic player</h1>
       <p class="welcome-subtitle">
-        Touch the iconic click wheel, browse the classic LCD screen, and relive the tactile magic.
+        Touch the rotary click wheel, navigate the classic LCD screen, and relive the tactile music experience.
       </p>
       
       <div class="welcome-buttons">
