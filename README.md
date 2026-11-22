@@ -126,5 +126,5 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ## Project Info
 
-- **Repository**: [https://github.com/PurohitBhagyesh/mp3-player-simulator-3d](https://github.com/PurohitBhagyesh/mp3-player-simulator-3d)
+- **Repository**: [https://github.com/PurohitBhagyesh/FeelPod-3D](https://github.com/PurohitBhagyesh/FeelPod-3D)
 - **License**: MIT Open Source
