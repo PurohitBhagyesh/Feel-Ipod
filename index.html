@@ -258,19 +258,6 @@
             </label>
           </div>
 
-          <!-- Text Size (Small, Medium, Large) -->
-          <div class="setting-row">
-            <div class="setting-info">
-              <span class="setting-name">Text Size</span>
-              <span class="setting-desc">Adjust LCD display & typography size</span>
-            </div>
-            <div class="segmented-control" id="text-size-control">
-              <button type="button" class="seg-btn" data-size="small">Small</button>
-              <button type="button" class="seg-btn active" data-size="medium">Medium</button>
-              <button type="button" class="seg-btn" data-size="large">Large</button>
-            </div>
-          </div>
-
           <!-- Sensitivity Slider -->
           <div class="setting-row">
             <div class="setting-info">
@@ -294,14 +281,31 @@
             </label>
           </div>
 
-          <!-- Change Background from Files -->
+          <!-- Background Blend with iPod -->
           <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Background Blend</span>
+              <span class="setting-desc">Blend wallpaper reflections & lighting with iPod casing</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-bg-blend" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Change Background from Files -->
+          <div class="setting-row setting-wallpaper-row">
             <div class="setting-info">
               <span class="setting-name">Custom Background Wallpaper</span>
               <span class="setting-desc">Upload wallpaper (supports image or video)</span>
             </div>
             <div class="bg-upload-btns">
               <label for="bg-file-input" class="action-btn file-btn">
+                <svg class="btn-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
                 Upload Wallpaper
               </label>
               <input type="file" id="bg-file-input" accept="image/*,video/*" style="display: none;" />

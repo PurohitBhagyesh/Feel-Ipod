@@ -34,6 +34,7 @@ const simulatorSettings = {
   sensitivity: 1.0,
   virtualWheel: false,
   textSize: 'medium',
+  bgBlend: false,
   customBg: null,
   customVideo: false
 };
@@ -41,6 +42,25 @@ const simulatorSettings = {
 function updateCustomBgState() {
   const hasBg = Boolean(simulatorSettings.customBg || simulatorSettings.customVideo);
   document.body.classList.toggle('has-custom-bg', hasBg);
+  updateBgBlendEffect();
+}
+
+function updateBgBlendEffect() {
+  if (!ipodBodyMesh || !ipodBodyMesh.material) return;
+  const isBlend = Boolean(simulatorSettings.bgBlend);
+  const hasBg = Boolean(simulatorSettings.customBg || simulatorSettings.customVideo);
+
+  if (isBlend) {
+    // Harmonize casing shader roughness, metalness, and environmental sheen with wallpaper
+    ipodBodyMesh.material.roughness = hasBg ? 0.28 : 0.20;
+    ipodBodyMesh.material.metalness = hasBg ? 0.22 : 0.14;
+    ipodBodyMesh.material.needsUpdate = true;
+  } else {
+    // Classic pure glossy ceramic / anodized studio finish
+    ipodBodyMesh.material.roughness = 0.12;
+    ipodBodyMesh.material.metalness = 0.08;
+    ipodBodyMesh.material.needsUpdate = true;
+  }
 }
 
 // Theme Presets: Curated Neutral Classics & Luxury Premium Editions
@@ -317,9 +337,7 @@ function init() {
 // --- Dedicated Guaranteed-Visible LCD Screen Mesh ---
 function createDedicatedScreen() {
   screenRenderer = new iPodScreenRenderer();
-  if (simulatorSettings.textSize) {
-    screenRenderer.setTextSize(simulatorSettings.textSize);
-  }
+  screenRenderer.setTextSize('medium'); // Locked directly to standard crisp medium typography
   screenRenderer.setTracks(audioEngine.tracks);
   screenRenderer.render();
 
@@ -347,29 +365,30 @@ function createDedicatedScreen() {
   scene.add(screenMesh);
 }
 
-// --- Dynamic Camera Framing (Auto-Adjusts Clearance Above Bottom Dock & Header) ---
+// --- Dynamic Camera Framing (Full-Size Mobile iPod with Clean Spacing Above Bottom Dock) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   let z, y;
 
   if (aspect < 0.65) {
-    // Tall portrait smartphones (iPhone, Pixel, Galaxy):
-    // Pod brought closer to appear tactile, large, sharp, and prominent with clean clearance
-    z = Math.min(3.85, Math.max(3.40, 1.62 / aspect));
-    y = -0.04;
+    // Tall portrait smartphones (iPhone 12/13/14/15/Pro, Pixel, Galaxy):
+    // iPod scaled to full size (prominent, tactile, sharp) with z between 3.08 and 3.40,
+    // and elevated with y = 0.05 to leave generous ~90-110px clearance above bottom dock
+    z = Math.min(3.40, Math.max(3.08, 1.48 / aspect));
+    y = 0.05;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = Math.min(4.45, Math.max(3.90, 2.05 / aspect));
-    y = -0.06;
+    z = Math.min(4.10, Math.max(3.60, 1.85 / aspect));
+    y = 0.02;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
-    z = 4.65;
-    y = -0.08;
+    z = 4.55;
+    y = -0.04;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
-    // Generous ~110px-120px clearance between bottom of pod and bottom dock
-    z = 4.75;
-    y = -0.10;
+    // Generous ~110px-130px clearance between bottom of pod and bottom dock
+    z = 4.65;
+    y = -0.04;
   }
 
   camera.position.set(0, y, z);
@@ -828,6 +847,7 @@ function loadIpodModel() {
               metalness: 0.08
             });
             ipodBodyMesh = child;
+            updateBgBlendEffect();
           }
           child.material.transparent = false;
           child.material.opacity = 1.0;
@@ -1371,6 +1391,7 @@ function applyCustomTheme() {
   // 1. Update iPod Casing 3D Mesh Material
   if (ipodBodyMesh && ipodBodyMesh.material) {
     ipodBodyMesh.material.color.set(currentTheme.casing);
+    updateBgBlendEffect();
     ipodBodyMesh.material.needsUpdate = true;
   }
 
@@ -1422,27 +1443,17 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
   });
 
-  // Text Size (Small, Medium, Large)
-  const textSizeBtns = document.querySelectorAll('#text-size-control .seg-btn');
-  textSizeBtns.forEach(btn => {
-    if (btn.dataset.size === (simulatorSettings.textSize || 'medium')) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-    btn.addEventListener('click', () => {
-      textSizeBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const size = btn.dataset.size;
-      simulatorSettings.textSize = size;
-      if (screenRenderer) {
-        screenRenderer.setTextSize(size);
-        if (screenTexture) screenTexture.needsUpdate = true;
-      }
+  // Background Blend with iPod Casing
+  const chkBgBlend = document.getElementById('setting-bg-blend');
+  if (chkBgBlend) {
+    chkBgBlend.checked = Boolean(simulatorSettings.bgBlend);
+    chkBgBlend.addEventListener('change', (e) => {
+      simulatorSettings.bgBlend = e.target.checked;
+      updateBgBlendEffect();
       localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
-      showToast(`Text size: ${size.charAt(0).toUpperCase() + size.slice(1)}`);
+      showToast(e.target.checked ? "Background Blend enabled" : "Background Blend disabled");
     });
-  });
+  }
 
   // Sensitivity
   const rngSensitivity = document.getElementById('setting-sensitivity');
@@ -1776,6 +1787,7 @@ async function loadSavedSettings() {
   }
 
   updateCustomBgState();
+  updateBgBlendEffect();
 }
 
 // --- Local MP3 File & Folder Import via Menu, Button, File Input, or Drag & Drop ---

@@ -12,6 +12,17 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ## Key Features
 
+- **Solid Bold Black Typography & Apple Liquid Glass Design**
+  - High-contrast, razor-sharp deep solid black text (`#000000`, `font-weight: 600–700`) on default studio white glass surfaces for crisp, effortless legibility under all lighting conditions.
+  - Transparent liquid glass components (`.apple-glass-dock`, `.modal-card`, `.theme-tray`, `.loader-glass-card`) with prominent dark perimeter rims and deep edge drop shadows (`box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22)`).
+
+- **Full-Size Responsive Mobile Framing & Clearance**
+  - Re-engineered camera viewport calculations in portrait mobile mode (`y = 0.05, z = 3.08-3.40`) giving the 3D iPod a prominent, full-screen tactile presence while preserving generous ~100px clearance above the bottom options dock.
+  - Option to collapse the bottom dock completely with the `>` button to enjoy pure on-device click-wheel and LCD screen interaction.
+
+- **Background Blend Mode**
+  - New preference switch in Settings that harmonizes the iPod casing roughness, metalness, and environmental light reception with active custom wallpapers and video backgrounds.
+
 - **PWA & Add to Home Screen with Native Logo**
   - Web App Manifest (`manifest.webmanifest`) and multi-resolution Apple Touch Icons (180x180, 192x192, 512x512).
   - Installable directly to your iOS or Android home screen with the custom FeelPod 3D logo emblem.
