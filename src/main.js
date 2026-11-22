@@ -243,7 +243,7 @@ function init() {
   controls.enableRotate = false; // LOCKED: No 360 tumbling
   controls.enablePan = false;
   controls.enableZoom = false;
-  controls.target.set(0, 0.15, 0);
+  updateCameraFraming();
 
   // Studio Lighting & Contact Floor Shadow
   setupLighting();
@@ -385,39 +385,35 @@ function createDedicatedScreen() {
   scene.add(screenMesh);
 }
 
-// --- Dynamic Camera Framing (Compact, Perfectly Scaled MP3 Player in Center) ---
+// --- Dynamic Camera Framing (Big & Tactile on Desktop, Balanced on Mobile) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
-  let z, y, targetY;
+  let z, y;
 
   if (aspect < 0.65) {
     // Tall portrait smartphones (iPhone 12/13/14/15/Pro, Pixel, Galaxy):
     // Elegantly scaled compact MP3 player occupying ~62% of width with generous side margins,
     // and vertically centered with headphone plug cleanly hovering above
-    z = Math.min(4.90, Math.max(4.25, 2.05 / aspect));
+    z = Math.min(4.80, Math.max(4.20, 2.0 / aspect));
     y = 0.0;
-    targetY = 0.0;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = 4.85;
+    z = 4.10;
     y = 0.0;
-    targetY = 0.0;
   } else if (aspect < 1.4) {
-    // Compact laptops / 4:3 and 3:2 displays
-    z = 5.15;
-    y = 0.0;
-    targetY = 0.0;
+    // Compact laptops / 4:3 and 3:2 displays: big, prominent, and immersive
+    z = 3.80;
+    y = 0.02;
   } else {
-    // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
-    // Sits gracefully in the center like a premium industrial design exhibit
-    z = 5.35;
-    y = 0.0;
-    targetY = 0.0;
+    // Standard and widescreen desktop displays (16:9, 16:10, ultrawide):
+    // Big, tactile, prominent, and razor-sharp
+    z = 3.65;
+    y = 0.02;
   }
 
   camera.position.set(0, y, z);
   if (controls) {
-    controls.target.set(0, targetY, 0);
+    controls.target.set(0, y, 0);
     controls.update();
   }
 }

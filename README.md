@@ -27,7 +27,7 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Full keyboard navigation support (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`/`Backspace`, `Space`, `S`, `C`, `H`).
 
 - **Compact, Perfectly Proportioned Handheld Scaling (Desktop & Mobile)**
-  - Re-engineered camera framing (`z = 4.25-4.90` on mobile, `z = 5.35` on desktop) making the MP3 player comfortably smaller and realistically proportioned.
+  - Re-engineered camera framing (`z = 3.65–3.80` on desktop, `z = 4.20–4.80` on mobile) making the MP3 player big, prominent, and razor-sharp on desktop while maintaining balanced handheld proportions on mobile.
   - On smartphones, the player occupies ~62% of the screen width with generous side and vertical margins, ensuring the device and hovering headphone jack are always fully visible.
 
 - **Background Blend Mode (Transparent Frosted Glass Casing)**
