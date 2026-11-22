@@ -194,9 +194,9 @@ function init() {
   });
   renderer.setClearColor(0x000000, 0); // transparent canvas
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3)); // Max 3x Super Retina sharpness on phones
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
+  renderer.toneMappingExposure = 1.30;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
@@ -277,6 +277,9 @@ function createDedicatedScreen() {
 
   screenTexture = new THREE.CanvasTexture(screenRenderer.canvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
+  screenTexture.minFilter = THREE.LinearFilter;
+  screenTexture.magFilter = THREE.LinearFilter;
+  screenTexture.generateMipmaps = false; // Razor-sharp 2D text & icons without mipmap blurring
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   screenTexture.needsUpdate = true;
 
@@ -302,21 +305,22 @@ function updateCameraFraming() {
   let z, y;
 
   if (aspect < 0.65) {
-    // Tall portrait smartphones (e.g. iPhone, Pixel)
-    z = Math.max(5.40, 2.70 / aspect);
-    y = -0.06;
+    // Tall portrait smartphones (iPhone, Pixel, Galaxy):
+    // Pod fills ~76% of screen width and ~60% of screen height for a tactile, prominent presence
+    z = Math.min(4.30, Math.max(4.05, 1.90 / aspect));
+    y = -0.08;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = Math.max(5.05, 2.75 / aspect);
+    z = Math.min(4.65, Math.max(4.25, 2.30 / aspect));
     y = -0.08;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
-    z = 4.95;
+    z = 4.85;
     y = -0.09;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
     // Generous ~110px-120px clearance between bottom of pod and bottom dock
-    z = 4.85;
+    z = 4.80;
     y = -0.10;
   }
 
@@ -329,28 +333,33 @@ function updateCameraFraming() {
 
 // --- Studio Lighting ---
 function setupLighting() {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
   scene.add(ambientLight);
 
   // Warm studio key spotlight casting specular sheen on front bevels
-  const keyLight = new THREE.SpotLight(0xfffaee, 4.0);
+  const keyLight = new THREE.SpotLight(0xffffff, 4.5);
   keyLight.position.set(2.5, 4.0, 3.5);
   keyLight.angle = Math.PI / 4;
-  keyLight.penumbra = 0.7;
+  keyLight.penumbra = 0.5;
   scene.add(keyLight);
 
   // Soft cool studio fill from left
-  const fillLight = new THREE.DirectionalLight(0xdbe6f5, 1.2);
+  const fillLight = new THREE.DirectionalLight(0xf0f4f8, 1.4);
   fillLight.position.set(-3.2, 2.0, 2.2);
   scene.add(fillLight);
 
   // Top light illuminating the headphone jack opening and plug
-  const topLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  const topLight = new THREE.DirectionalLight(0xffffff, 2.2);
   topLight.position.set(0, 4.5, 1.2);
   scene.add(topLight);
 
-  // Subtle crisp rim light for chrome contour edges
-  const rimLight = new THREE.DirectionalLight(0x7595b8, 1.4);
+  // Upward bounce light so the plug tip and bottom bevels NEVER appear dark or black
+  const bottomBounceLight = new THREE.DirectionalLight(0xf5f7fb, 1.8);
+  bottomBounceLight.position.set(0, -2.5, 2.5);
+  scene.add(bottomBounceLight);
+
+  // Crisp rim light for sharp chrome and contour definition
+  const rimLight = new THREE.DirectionalLight(0x90a8c8, 1.6);
   rimLight.position.set(0, 2.0, -3.0);
   scene.add(rimLight);
 }
@@ -390,25 +399,28 @@ function createStudioContactShadow() {
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Clean luminous light grey silver chrome conductors
+  // Clean luminous light grey silver chrome conductors (Bright, non-black even in downward shadow)
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xe2e6ee,
-    metalness: 0.82,
-    roughness: 0.16
+    color: 0xf4f6fa,
+    metalness: 0.35,  // Balanced metalness gives strong diffuse reflection so it stays bright silver/white
+    roughness: 0.16,
+    emissive: 0x22262e // Ambient tone floor ensures tip dome NEVER appears dark or black
   });
 
   // Authentic Apple Wired EarPods Crisp Pure White Delrin Insulator Bands
   const whiteInsulatorMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.14,
-    metalness: 0.0
+    roughness: 0.12,
+    metalness: 0.0,
+    emissive: 0x141414
   });
 
   // Soft light grey detent latching neck groove
   const waistMat = new THREE.MeshStandardMaterial({
-    color: 0xd4d8e2,
-    metalness: 0.78,
-    roughness: 0.20
+    color: 0xdde2ea,
+    metalness: 0.30,
+    roughness: 0.20,
+    emissive: 0x22262e
   });
 
   const R = 0.029; // Uniform outer conductor radius (flush continuous cylinder)
@@ -527,6 +539,9 @@ function createProceduralClickWheel() {
 
   clickWheelTexture = new THREE.CanvasTexture(clickWheelCanvas);
   clickWheelTexture.colorSpace = THREE.SRGBColorSpace;
+  clickWheelTexture.minFilter = THREE.LinearFilter;
+  clickWheelTexture.magFilter = THREE.LinearFilter;
+  clickWheelTexture.generateMipmaps = false; // Razor-sharp vector typography & icons
   clickWheelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   clickWheelTexture.needsUpdate = true;
 
@@ -727,17 +742,18 @@ function loadIpodModel() {
               roughness: 0.28
             });
           } else if (name.includes('Headphone') || parentName.includes('Headphone')) {
+            // Clean machined light grey aluminum headphone jack bezel (Zero dark/black pit)
             child.material = new THREE.MeshStandardMaterial({
-              color: 0x111317,
-              metalness: 0.90,
-              roughness: 0.15
+              color: 0xd8dbe2,
+              metalness: 0.40,
+              roughness: 0.25
             });
           } else {
-            // Main body casing: pure solid glossy color without any brand logos or old textures
+            // Main body casing: crisp glossy finish with sharp specular highlights
             child.material = new THREE.MeshStandardMaterial({
               color: new THREE.Color(currentTheme.casing),
-              roughness: 0.18,
-              metalness: 0.05
+              roughness: 0.12,
+              metalness: 0.08
             });
             ipodBodyMesh = child;
           }
@@ -1536,9 +1552,11 @@ function loadSavedSettings() {
     console.warn(e);
   }
 
-  // Apply custom background if saved
+  // Apply custom background only if explicitly saved, otherwise ensure clean studio white
   if (simulatorSettings.customBg) {
     document.body.style.backgroundImage = `url("${simulatorSettings.customBg}")`;
+  } else {
+    document.body.style.backgroundImage = '';
   }
 }
 
@@ -1651,6 +1669,7 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
   updateCameraFraming();
 }
 

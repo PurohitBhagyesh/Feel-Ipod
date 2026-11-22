@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background-color: #ffffff;">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
-<body>
+<body style="background-color: #ffffff;">
   <!-- Background Video for Custom Live Wallpapers -->
   <video id="bg-video" class="bg-video hidden" autoplay loop muted playsinline></video>
 
@@ -361,8 +361,8 @@
   <!-- Minimal Toast Notification -->
   <div id="toast" class="toast-pill"></div>
 
-  <!-- Hidden File Input for MP3 Import (Supports Multiple Files) -->
-  <input type="file" id="mp3-file-input" accept="audio/*" multiple style="display: none;" />
+  <!-- Hidden File Input for Audio Import (Direct Files App Picker) -->
+  <input type="file" id="mp3-file-input" accept=".mp3,.m4a,.wav,.aac,.flac,.ogg,audio/mpeg,audio/mp3,audio/x-m4a,audio/wav,audio/flac" multiple style="display: none;" />
 
   <!-- Main JavaScript Entrypoint -->
   <script type="module" src="/src/main.js"></script>
