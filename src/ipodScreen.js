@@ -329,11 +329,11 @@ export class iPodScreenRenderer {
         ctx.fillStyle = isSelected ? '#ffffff' : '#555555';
         ctx.fillText('›', w - 20, y + 33);
       } else if (item.id === 'import') {
-        // Subtle folder icon indicator
+        // Clean + indicator for importing
         ctx.textAlign = 'right';
-        ctx.font = '18px sans-serif';
-        ctx.fillStyle = isSelected ? '#ffffff' : '#888888';
-        ctx.fillText('📁', w - 20, y + 33);
+        ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = isSelected ? '#ffffff' : '#68758d';
+        ctx.fillText('+', w - 20, y + 33);
       }
     });
   }
@@ -373,33 +373,24 @@ export class iPodScreenRenderer {
     ctx.fillText('Press MENU to return', w / 2, h - 22);
   }
 
-  drawNowPlaying(ctx, w, h, freqData) {
-    const artSize = 138;
-    const artX = 24;
-    const artY = 62;
-
-    // 1. Spinning Vinyl Album Artwork
+  drawVinylRecord(ctx, artX, artY, artSize) {
     if (this.isPlaying) {
       this.vinylAngle += 0.045;
     }
 
     ctx.save();
-    // Rounded album art frame
     ctx.beginPath();
     ctx.roundRect(artX, artY, artSize, artSize, 8);
     ctx.clip();
 
-    // Dark record backdrop
     ctx.fillStyle = '#14171f';
     ctx.fillRect(artX, artY, artSize, artSize);
 
-    // Rotating vinyl disc
     const cx = artX + artSize / 2;
     const cy = artY + artSize / 2;
     ctx.translate(cx, cy);
     ctx.rotate(this.vinylAngle);
 
-    // Grooves
     ctx.strokeStyle = '#282d3c';
     ctx.lineWidth = 1.2;
     for (let r = 24; r < 64; r += 7) {
@@ -408,7 +399,6 @@ export class iPodScreenRenderer {
       ctx.stroke();
     }
 
-    // Specular light sheen wedges
     const gradSheen = ctx.createRadialGradient(0, 0, 10, 0, 0, 64);
     gradSheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
     gradSheen.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
@@ -425,19 +415,49 @@ export class iPodScreenRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Center vinyl sticker
-    ctx.fillStyle = '#cf352e'; // Retro red record center
+    ctx.fillStyle = '#cf352e';
     ctx.beginPath();
     ctx.arc(0, 0, 22, 0, Math.PI * 2);
     ctx.fill();
 
-    // Spindle hole
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
+  }
+
+  drawNowPlaying(ctx, w, h, freqData) {
+    const artSize = 138;
+    const artX = 24;
+    const artY = 62;
+
+    // 1. Album Artwork: Real Embedded Cover or Spinning Vinyl Record
+    const hasCover = this.currentTrack && this.currentTrack.coverImage && this.currentTrack.coverImage.complete && this.currentTrack.coverImage.naturalWidth > 0;
+
+    if (hasCover) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(artX, artY, artSize, artSize, 8);
+      ctx.clip();
+      ctx.drawImage(this.currentTrack.coverImage, artX, artY, artSize, artSize);
+
+      // Glossy sheen overlay
+      const glossGrad = ctx.createLinearGradient(artX, artY, artX + artSize, artY + artSize);
+      glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+      glossGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = glossGrad;
+      ctx.fillRect(artX, artY, artSize, artSize);
+      ctx.restore();
+
+      // Delicate outer frame
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(artX, artY, artSize, artSize);
+    } else {
+      this.drawVinylRecord(ctx, artX, artY, artSize);
+    }
 
     // 2. Track Metadata (Right Column)
     const textX = artX + artSize + 20;
@@ -584,11 +604,18 @@ export class iPodScreenRenderer {
       ctx.roundRect(vx, vy, vW, vH, 8);
       ctx.fill();
 
-      // Speaker icon
-      ctx.font = '16px sans-serif';
+      // Speaker vector icon (no emojis)
       ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'left';
-      ctx.fillText('🔈', vx + 12, vy + 23);
+      ctx.beginPath();
+      const sx = vx + 14;
+      const sy = vy + 17;
+      ctx.rect(sx, sy - 3, 3, 6);
+      ctx.moveTo(sx + 3, sy - 3);
+      ctx.lineTo(sx + 8, sy - 7);
+      ctx.lineTo(sx + 8, sy + 7);
+      ctx.lineTo(sx + 3, sy + 3);
+      ctx.closePath();
+      ctx.fill();
 
       // Volume bar
       const barTrackX = vx + 40;

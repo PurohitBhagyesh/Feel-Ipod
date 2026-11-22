@@ -380,8 +380,28 @@ class iPodAudioEngine {
       const url = URL.createObjectURL(file);
       let title = file.name.replace(/\.[^/.]+$/, "");
       let artist = "Imported Audio";
+      let album = "My Imported MP3s";
+      let coverUrl = null;
+      let coverImage = null;
 
-      if (title.includes(" - ")) {
+      // Parse ID3v2 metadata & APIC album cover
+      try {
+        const arrayBuf = await file.slice(0, Math.min(file.size, 1024 * 1024)).arrayBuffer();
+        const id3Data = parseID3v2(arrayBuf);
+        if (id3Data.title) title = id3Data.title;
+        if (id3Data.artist) artist = id3Data.artist;
+        if (id3Data.album) album = id3Data.album;
+        if (id3Data.coverUrl) {
+          coverUrl = id3Data.coverUrl;
+          const img = new Image();
+          img.src = coverUrl;
+          coverImage = img;
+        }
+      } catch (err) {
+        console.warn("ID3 parse skipped:", err);
+      }
+
+      if (!coverUrl && title.includes(" - ")) {
         const parts = title.split(" - ");
         artist = parts[0].trim();
         title = parts.slice(1).join(" - ").trim();
@@ -402,10 +422,12 @@ class iPodAudioEngine {
         id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         title: title,
         artist: artist,
-        album: "My Imported MP3s",
+        album: album,
         duration: `${mins}:${secs}`,
         durationSec: totalSec,
         url: url,
+        coverUrl: coverUrl,
+        coverImage: coverImage,
         isCustom: true
       };
 
@@ -421,6 +443,32 @@ class iPodAudioEngine {
     }
 
     return importedList;
+  }
+
+  // --- Interactive Seeking / Sliding ---
+  seekTo(seconds) {
+    const cur = this.getCurrentTrack();
+    const duration = (cur.isCustom && this.audioElement.duration) ? this.audioElement.duration : (cur.durationSec || 200);
+    const clampedTime = Math.max(0, Math.min(duration, seconds));
+
+    if (cur.isCustom && this.audioElement) {
+      this.audioElement.currentTime = clampedTime;
+    }
+    this.progress = duration > 0 ? (clampedTime / duration) : 0;
+
+    window.dispatchEvent(new CustomEvent('ipod-timeupdate', {
+      detail: {
+        currentTime: clampedTime,
+        duration: duration,
+        progress: this.progress
+      }
+    }));
+  }
+
+  seekToProgress(fraction) {
+    const cur = this.getCurrentTrack();
+    const duration = (cur.isCustom && this.audioElement.duration) ? this.audioElement.duration : (cur.durationSec || 200);
+    this.seekTo(fraction * duration);
   }
 
   // Alias for single file import
@@ -615,6 +663,94 @@ class iPodAudioEngine {
       this.musicInterval = null;
     }
   }
+}
+
+// --- ID3v2 Tag & APIC Album Cover Extractor ---
+function parseID3v2(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const metadata = { title: null, artist: null, album: null, coverUrl: null };
+
+  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) { // 'ID3'
+    const ver = bytes[3];
+    const tagSize = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) | ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
+    let offset = 10;
+    const maxOffset = Math.min(bytes.length, tagSize + 10);
+
+    while (offset + 10 < maxOffset) {
+      const frameId = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+      if (frameId.charCodeAt(0) === 0) break;
+
+      let frameSize = 0;
+      if (ver === 4) {
+        frameSize = ((bytes[offset + 4] & 0x7f) << 21) | ((bytes[offset + 5] & 0x7f) << 14) | ((bytes[offset + 6] & 0x7f) << 7) | (bytes[offset + 7] & 0x7f);
+      } else {
+        frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16) | (bytes[offset + 6] << 8) | bytes[offset + 7];
+      }
+
+      const frameDataOffset = offset + 10;
+      if (frameSize <= 0 || frameDataOffset + frameSize > bytes.length) break;
+
+      const frameBytes = bytes.subarray(frameDataOffset, frameDataOffset + frameSize);
+
+      if (frameId === 'TIT2') {
+        metadata.title = decodeTextFrame(frameBytes);
+      } else if (frameId === 'TPE1') {
+        metadata.artist = decodeTextFrame(frameBytes);
+      } else if (frameId === 'TALB') {
+        metadata.album = decodeTextFrame(frameBytes);
+      } else if (frameId === 'APIC') {
+        try {
+          const encoding = frameBytes[0];
+          let mimeEnd = 1;
+          while (mimeEnd < frameBytes.length && frameBytes[mimeEnd] !== 0) mimeEnd++;
+          let mime = 'image/jpeg';
+          if (mimeEnd > 1) {
+            mime = String.fromCharCode(...frameBytes.subarray(1, mimeEnd)).toLowerCase();
+            if (!mime.includes('/')) mime = 'image/' + mime;
+          }
+          let descEnd = mimeEnd + 2;
+          if (encoding === 1 || encoding === 2) {
+            while (descEnd + 1 < frameBytes.length && !(frameBytes[descEnd] === 0 && frameBytes[descEnd + 1] === 0)) descEnd += 2;
+            descEnd += 2;
+          } else {
+            while (descEnd < frameBytes.length && frameBytes[descEnd] !== 0) descEnd++;
+            descEnd += 1;
+          }
+          const imgBytes = frameBytes.subarray(descEnd);
+          if (imgBytes.length > 32) {
+            const blob = new Blob([imgBytes], { type: mime });
+            metadata.coverUrl = URL.createObjectURL(blob);
+          }
+        } catch (e) {
+          console.warn('APIC cover parse error:', e);
+        }
+      }
+
+      offset = frameDataOffset + frameSize;
+    }
+  }
+
+  return metadata;
+}
+
+function decodeTextFrame(frameBytes) {
+  if (!frameBytes || frameBytes.length < 2) return null;
+  const encoding = frameBytes[0];
+  const data = frameBytes.subarray(1);
+  try {
+    if (encoding === 0) {
+      return new TextDecoder('iso-8859-1').decode(data).replace(/\0.*$/g, '').trim();
+    } else if (encoding === 1) {
+      return new TextDecoder('utf-16').decode(data).replace(/\0.*$/g, '').trim();
+    } else if (encoding === 2) {
+      return new TextDecoder('utf-16be').decode(data).replace(/\0.*$/g, '').trim();
+    } else if (encoding === 3) {
+      return new TextDecoder('utf-8').decode(data).replace(/\0.*$/g, '').trim();
+    }
+  } catch (e) {
+    return String.fromCharCode(...data).replace(/\0.*$/g, '').trim();
+  }
+  return null;
 }
 
 export const audioEngine = new iPodAudioEngine();

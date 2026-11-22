@@ -9,32 +9,47 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ---
 
-## ✨ Features
+## Features
 
-- **📺 Dynamic LCD Screen with Dedicated Front Display**
+- **Embedded Album Cover Art Extraction (ID3v2 APIC)**
+  - Native client-side ID3v2 parser extracts attached picture (`APIC`) artwork directly from imported MP3, M4A, and FLAC files.
+  - Renders true high-resolution album cover art on the LCD display with subtle rounded corners and glossy glass reflections.
+  - Intelligent fallback to an animated spinning vinyl record for audio tracks without embedded covers.
+
+- **Interactive LCD Song Scrubber**
+  - Smooth scrubbing and seeking: click or slide directly along the progress bar on the LCD screen to scrub forward and backward in real-time.
+  - Real-time timecode updates (elapsed time and remaining time) as you slide.
+
+- **Apple Liquid Glass Bottom Dock**
+  - Sleek, translucent frosted-glass dock anchored at the bottom of the screen (`backdrop-filter: blur(32px) saturate(190%)`).
+  - Completely clears the top space for the animated 3.5mm headphone cable.
+  - High-precision neutral monochrome SVG vector icons and live mini equalizer track pill.
+  - Pure neutral color palette adhering to modern Apple design standards.
+
+- **Dynamic LCD Screen with Dedicated Front Display**
   - High-DPI canvas texture with authentic pixel-sharp typography, battery indicator, and animated status icons.
   - Interactive menu hierarchy: `Music`, `Import MP3`, `Extras`, `Settings` (Preferences, About), and `Shuffle Songs`.
   - Recessed dark LCD bezel border frame.
 
-- **🎮 Authentic Concentric Procedural Click Wheel**
+- **Authentic Concentric Procedural Click Wheel**
   - 100% mathematically aligned, concentric procedural vector click wheel with instant visual button flash feedback.
-  - Replaces all old low-res textures with high-contrast highlighted typography (`#1e293b`) and razor-sharp vector symbols.
+  - High-contrast highlighted typography (`#1e293b`) and razor-sharp vector symbols.
   - Continuous rotary drag detection using circular trigonometry (`atan2`) with mechanical piezo audio ticks.
   - 5 responsive physical control zones:
-    - **Center Button**: `SELECT` / Play track / Open menu
-    - **Top**: `MENU` (Navigate back up view hierarchy)
-    - **Bottom**: `PLAY / PAUSE`
-    - **Left**: `PREVIOUS TRACK`
-    - **Right**: `NEXT TRACK`
+    - **Center Button**: Select / Play track / Open menu
+    - **Top**: Menu (Navigate back up view hierarchy)
+    - **Bottom**: Play / Pause
+    - **Left**: Previous track
+    - **Right**: Next track
   - Mouse scroll wheel support directly over the player for lightning-fast scrolling.
 
-- **🎧 Real Wired Headphone Auto-Connect & White Earphone Tip**
-  - **Auto-Connect**: Detects when you connect physical wired headphones or AirPods/Bluetooth to your computer or phone (`navigator.mediaDevices`), automatically triggering the 3D jack insertion!
-  - **Authentic Apple Earphone Finish**: Pure white polymer insulator rings separating mirror-polished silver chrome conductors (`Tip`, `Ring 1`, `Ring 2`, `Sleeve`), with white polycarbonate barrel and flexible white cable (zero corrosion look).
+- **Real Wired Headphone Auto-Connect & White Earphone Tip**
+  - **Auto-Connect**: Detects when you connect physical wired headphones or AirPods/Bluetooth to your device (`navigator.mediaDevices`), automatically triggering the 3D jack insertion.
+  - **Authentic Apple EarPods Tip**: Real-life dual white polymer insulator rings separating mirror-polished silver chrome conductors (`Tip`, `Ring 1`, `Ring 2`, `Sleeve`), with white polycarbonate barrel and flexible white cable (zero corrosion look).
   - **Earphone-Driven Audio**: Sound plays only when earphones are plugged in; unplugging immediately pauses and mutes.
-  - **Immersive Modal**: YouTube-style animated **"Wear Headphones"** popup appears when connecting.
+  - **Immersive Modal**: Sleek **"Wear Headphones"** popup appears when connecting.
 
-- **🎨 Interactive Color Wheel & Theme Customizer**
+- **Interactive Color Palette & Theme Customizer**
   - Real-time 3D color customizer with instant presets:
     - **Classic White**
     - **Stealth Black**
@@ -49,7 +64,7 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Custom color pickers for casing, click wheel, and headphone jack & cable.
   - Automatically saved to `localStorage`.
 
-- **⚙️ Comprehensive Simulator Settings**
+- **Comprehensive Simulator Settings**
   - **Reduce Motion**: Toggle to disable floating breathing animations and enable instant transitions.
   - **Wheel Sensitivity**: Interactive slider (0.5x to 2.5x) to fine-tune rotary scrolling speed.
   - **On-Screen Virtual Wheel**: Toggle an authentic on-screen touch controller in the bottom right corner.
@@ -58,51 +73,46 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - **Contact Us**: Connect directly with the developer via GitHub and Email.
   - **About**: Privacy Policy (100% client-side & private), Terms of Use, and MIT License.
 
-- **📁 "Import MP3" Feature (Inside UI & Drag-and-Drop)**
-  - Direct menu item `Import MP3` on the player screen and top navigation bar.
+- **Import MP3 Feature (Inside UI & Drag-and-Drop)**
+  - Direct menu item `Import MP3` on the player screen and bottom dock.
   - Select single or multiple audio files (.mp3, .wav, .m4a, .aac, .flac).
   - Drag-and-drop any audio file anywhere onto the player to instantly load and play it.
-  - Automatic metadata extraction (title, artist, duration).
+  - Automatic metadata extraction (title, artist, duration, cover art).
 
-- **⚡ Alive "Now Playing" LCD Screen**
+- **Alive "Now Playing" LCD Screen**
   - **10-Band Live Graphic Equalizer**: Real-time bouncing LCD spectrum visualizer bars with segmented bricks and peak hold dots.
-  - **Animated Spinning Vinyl**: 3D vinyl record disc with spinning grooves, dynamic specular sheen wedges, and retro red center sticker.
-  - **Live Progress Tracking**: Smooth elapsed time (`0:42`), remaining time (`-2:38`), and diamond playhead slider.
+  - **Live Progress Tracking**: Smooth elapsed time (`0:42`), remaining time (`-2:38`), and interactive playhead slider.
   - **Live Volume HUD**: Spinning the wheel in Now Playing mode smoothly adjusts volume with popup HUD.
 
-- **🎵 Background Play & Media Session API**
+- **Background Play & Media Session API**
   - Continuous background audio playback when switching tabs or minimizing the browser.
   - Integrated with OS media keys (Mac keyboard Play/Pause/Skip, Control Center, lock screen widgets).
 
 ---
 
-## 🕹️ Controls Guide
+## Controls Guide
 
 | Action | Control |
 |---|---|
 | **Scroll Menus / Volume** | Drag circularly along the click wheel, or scroll mouse wheel |
 | **Select / Confirm / Play** | Click Center Button |
 | **Back / Up Menu** | Click **MENU** (Top of Wheel) |
-| **Play / Pause** | Click **▶❚❚** (Bottom of Wheel) |
-| **Previous Song** | Click **\|◀◀** (Left of Wheel) |
-| **Next Song** | Click **▶▶\|** (Right of Wheel) |
-| **Plug / Unplug Earphones** | Click the hovering 3.5mm plug, top jack opening, or top bar button |
-| **Customize Colors** | Click **🎨 Color** in top bar |
-| **Open Settings** | Click **⚙️ Settings** in top bar, or select **Preferences...** on screen |
-| **Import Audio Files** | Click **📁 Import**, select on screen, or drag & drop files into window |
+| **Play / Pause** | Click bottom of Wheel |
+| **Previous Song** | Click left of Wheel |
+| **Next Song** | Click right of Wheel |
+| **Scrub / Slide Song** | Click or drag directly on the LCD timeline bar |
+| **Plug / Unplug Earphones** | Click the hovering 3.5mm plug, top jack opening, or bottom dock button |
+| **Customize Colors** | Click **Color** in bottom dock |
+| **Open Settings** | Click **Settings** in bottom dock, or select **Preferences...** on screen |
+| **Import Audio Files** | Click **Import**, select on screen, or drag & drop files into window |
 | **OS Media Keys** | Keyboard Play/Pause, Next, Prev, or Mac Control Center |
 
 ---
 
-## 👨‍💻 Developer & Contact
+## Developer & Contact
 
 - **Author**: Bhagyesh Purohit
 - **GitHub**: [@PurohitBhagyesh](https://github.com/PurohitBhagyesh)
-- **Email**: [Purohitunofficialbhagyesh@gmail.com](mailto:Purohitunofficialbhagyesh@gmail.com)
-
----
-
-## 📄 License & Privacy
-
-- **Privacy**: 100% client-side. No tracking, cookies, analytics, or audio files are ever uploaded or transmitted.
-- **License**: Released under the open-source [MIT License](LICENSE). Copyright (c) 2026 Bhagyesh Purohit.
+- **Email**: Purohitunofficialbhagyesh@gmail.com
+- **Repository**: [https://github.com/PurohitBhagyesh/mp3-player-simulator-3d](https://github.com/PurohitBhagyesh/mp3-player-simulator-3d)
+- **License**: MIT

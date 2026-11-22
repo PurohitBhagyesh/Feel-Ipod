@@ -343,22 +343,29 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Genuine Apple Wired Earphone 3.5mm Plug (Pure White Insulator Rings & Mirror Chrome) ---
+// --- Authentic Apple Wired Earphone 3.5mm Plug (Precision White & Grey Finish) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Gleaming mirror-polished silver chrome metal (100% corrosion-free)
+  // Authentic precision-machined neutral silver/grey chrome metal
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xfcfdff,
-    metalness: 0.98,
-    roughness: 0.05
+    color: 0xd6d9e2,
+    metalness: 0.96,
+    roughness: 0.08
   });
 
   // Authentic Apple Wired EarPods White Polymer Insulator Rings
   const whiteInsulatorMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.15,
+    roughness: 0.18,
     metalness: 0.02
+  });
+
+  // Recessed darker steel grey detent latching groove
+  const waistMat = new THREE.MeshStandardMaterial({
+    color: 0xb4b8c2,
+    metalness: 0.90,
+    roughness: 0.18
   });
 
   // 1. Tapered Bullet Tip
@@ -374,7 +381,7 @@ function createHeadphoneJackAssembly() {
 
   // Detent Waist Groove (latching groove)
   const waistGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.014, 32);
-  const waist = new THREE.Mesh(waistGeo, chromeMat);
+  const waist = new THREE.Mesh(waistGeo, waistMat);
   waist.position.y = -0.128;
   headphoneJackPlug.add(waist);
 
@@ -384,7 +391,7 @@ function createHeadphoneJackAssembly() {
   ring1.position.y = -0.117;
   headphoneJackPlug.add(ring1);
 
-  // Ring Conductor 1 (Right Audio)
+  // Ring Conductor 1 (Right Audio - Neutral Silver/Grey)
   const ringConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.032, 32);
   const ringConductor = new THREE.Mesh(ringConductorGeo, chromeMat);
   ringConductor.position.y = -0.096;
@@ -396,7 +403,7 @@ function createHeadphoneJackAssembly() {
   ring2.position.y = -0.076;
   headphoneJackPlug.add(ring2);
 
-  // Ring Conductor 2 (Ground)
+  // Ring Conductor 2 (Ground - Neutral Silver/Grey)
   const ring2ConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.025, 32);
   const ring2Conductor = new THREE.Mesh(ring2ConductorGeo, chromeMat);
   ring2Conductor.position.y = -0.058;
@@ -408,7 +415,7 @@ function createHeadphoneJackAssembly() {
   ring3.position.y = -0.041;
   headphoneJackPlug.add(ring3);
 
-  // Sleeve Conductor (Mic / Control)
+  // Sleeve Conductor (Mic / Control - Neutral Silver/Grey)
   const sleeveGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.030, 32);
   const sleeve = new THREE.Mesh(sleeveGeo, chromeMat);
   sleeve.position.y = -0.022;
@@ -739,7 +746,7 @@ function toggleHeadphonePlug(forceState = null) {
       if (plugBtn) plugBtn.classList.toggle('active', isPluggedIn);
 
       if (isPluggedIn) {
-        showToast("🎧 Earphones connected!");
+        showToast("Earphones connected");
         showImmersiveModal();
         if (!audioEngine.isPlaying) {
           audioEngine.toggleMusic(true);
@@ -747,7 +754,7 @@ function toggleHeadphonePlug(forceState = null) {
           if (screenTexture) screenTexture.needsUpdate = true;
         }
       } else {
-        showToast("🔌 Earphones disconnected — playback paused");
+        showToast("Earphones disconnected — playback paused");
         screenRenderer.setTrack(audioEngine.getCurrentTrack(), false);
         if (screenTexture) screenTexture.needsUpdate = true;
       }
@@ -763,8 +770,8 @@ function setupPlugInteraction() {
   const mouse = new THREE.Vector2();
 
   window.addEventListener('click', (e) => {
-    // Ignore clicks on HTML navigation / modals
-    if (e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+    // Ignore clicks on HTML navigation / dock / modals
+    if (e.target.closest('#bottom-dock') || e.target.closest('.bottom-dock') || e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
       return;
     }
 
@@ -794,12 +801,13 @@ function setupPlugInteraction() {
   });
 }
 
-// --- Authentic Direct Click Wheel Interaction ---
+// --- Authentic Direct Click Wheel & Song Scrubber Interaction ---
 function setupDirectClickWheel() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
   let isWheelDragging = false;
+  let isSongScrubbing = false;
   let lastWheelAngle = 0;
   let accumulatedAngle = 0;
   let dragStartPoint = new THREE.Vector2();
@@ -825,9 +833,24 @@ function setupDirectClickWheel() {
     return Math.atan2(p.y - WHEEL_CENTER_Y, p.x);
   }
 
+  function tryScrubSong(hit) {
+    if (!hit || hit.object !== screenMesh || !hit.uv) return false;
+    if (screenRenderer.getCurrentView() !== 'nowPlaying') return false;
+
+    // In nowPlaying, progress bar is at UV Y: 0.14..0.42
+    if (hit.uv.y >= 0.14 && hit.uv.y <= 0.42) {
+      const fraction = THREE.MathUtils.clamp((hit.uv.x - 0.0468) / (0.9531 - 0.0468), 0, 1);
+      audioEngine.seekToProgress(fraction);
+      screenRenderer.setTimeUpdate(audioEngine.currentTime, audioEngine.duration, fraction);
+      if (screenTexture) screenTexture.needsUpdate = true;
+      return true;
+    }
+    return false;
+  }
+
   // Pointer Down
   window.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+    if (e.target.closest('#bottom-dock') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
       return;
     }
 
@@ -836,12 +859,18 @@ function setupDirectClickWheel() {
     const hit = getRaycastHit(e);
     if (!hit) return;
 
+    // 1. Direct interactive song slider touch
+    if (tryScrubSong(hit)) {
+      isSongScrubbing = true;
+      return;
+    }
+
     const p = hit.point;
     const dx = p.x;
     const dy = p.y - WHEEL_CENTER_Y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Front face Click Wheel zone: R <= 0.42, Z > 0.05
+    // 2. Front face Click Wheel zone: R <= 0.42, Z > 0.05
     if (dist <= 0.42 && p.z > 0.05) {
       isWheelDragging = true;
       hasDragged = false;
@@ -851,8 +880,20 @@ function setupDirectClickWheel() {
     }
   });
 
-  // Pointer Move (Rotary Dragging)
+  // Pointer Move (Scrubbing / Rotary Dragging)
   window.addEventListener('pointermove', (e) => {
+    // Song scrubber drag
+    if (isSongScrubbing) {
+      const hit = getRaycastHit(e);
+      if (hit && hit.uv) {
+        const fraction = THREE.MathUtils.clamp((hit.uv.x - 0.0468) / (0.9531 - 0.0468), 0, 1);
+        audioEngine.seekToProgress(fraction);
+        screenRenderer.setTimeUpdate(audioEngine.currentTime, audioEngine.duration, fraction);
+        if (screenTexture) screenTexture.needsUpdate = true;
+      }
+      return;
+    }
+
     if (!isWheelDragging) return;
 
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -896,6 +937,11 @@ function setupDirectClickWheel() {
 
   // Pointer Up
   window.addEventListener('pointerup', (e) => {
+    if (isSongScrubbing) {
+      isSongScrubbing = false;
+      return;
+    }
+
     if (!isWheelDragging) return;
     isWheelDragging = false;
 
@@ -999,45 +1045,56 @@ function setupDirectClickWheel() {
   }, { passive: true });
 }
 
-// --- Top Navigation & Live Badge ---
+// --- Bottom Dock Navigation & Live Track Badge ---
 function setupTopNav() {
   const btnTheme = document.getElementById('btn-theme');
   const btnSettings = document.getElementById('btn-settings');
-  const btnImportTop = document.getElementById('btn-import-top');
+  const btnImport = document.getElementById('btn-import-dock') || document.getElementById('btn-import-top');
   const btnPlugToggle = document.getElementById('btn-plug-toggle');
   const themeTray = document.getElementById('theme-tray');
   const settingsModal = document.getElementById('settings-modal');
 
-  btnTheme.addEventListener('click', () => {
-    themeTray.classList.toggle('hidden');
-    if (!themeTray.classList.contains('hidden')) {
-      settingsModal.classList.add('hidden');
-    }
-  });
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      themeTray.classList.toggle('hidden');
+      if (!themeTray.classList.contains('hidden')) {
+        settingsModal.classList.add('hidden');
+      }
+    });
+  }
 
-  document.getElementById('btn-close-theme').addEventListener('click', () => {
-    themeTray.classList.add('hidden');
-  });
+  const btnCloseTheme = document.getElementById('btn-close-theme');
+  if (btnCloseTheme) {
+    btnCloseTheme.addEventListener('click', () => {
+      themeTray.classList.add('hidden');
+    });
+  }
 
-  btnSettings.addEventListener('click', () => {
-    settingsModal.classList.remove('hidden');
-    themeTray.classList.add('hidden');
-  });
+  if (btnSettings) {
+    btnSettings.addEventListener('click', () => {
+      settingsModal.classList.remove('hidden');
+      themeTray.classList.add('hidden');
+    });
+  }
 
-  btnImportTop.addEventListener('click', () => {
-    const fileInput = document.getElementById('mp3-file-input');
-    if (fileInput) fileInput.click();
-  });
+  if (btnImport) {
+    btnImport.addEventListener('click', () => {
+      const fileInput = document.getElementById('mp3-file-input');
+      if (fileInput) fileInput.click();
+    });
+  }
 
-  btnPlugToggle.addEventListener('click', () => {
-    audioEngine.init();
-    toggleHeadphonePlug();
-  });
+  if (btnPlugToggle) {
+    btnPlugToggle.addEventListener('click', () => {
+      audioEngine.init();
+      toggleHeadphonePlug();
+    });
+  }
 }
 
 function updateTopNavTrackBadge(track, isPlaying) {
-  const badge = document.getElementById('nav-track-badge');
-  const title = document.getElementById('nav-track-title');
+  const badge = document.getElementById('dock-track-badge') || document.getElementById('nav-track-badge');
+  const title = document.getElementById('dock-track-title') || document.getElementById('nav-track-title');
   if (!badge || !title) return;
 
   if (track && isPlaying) {
@@ -1196,7 +1253,7 @@ function setupSettingsModal() {
         document.body.style.backgroundImage = `url("${url}")`;
         simulatorSettings.customBg = url;
         localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
-        showToast("🖼️ Background wallpaper updated!");
+        showToast("Background wallpaper updated");
       };
       reader.readAsDataURL(file);
     }
@@ -1338,7 +1395,7 @@ function setupPhysicalHeadphoneDetection() {
 
         if (hasHeadphones && !isPluggedIn) {
           toggleHeadphonePlug(true);
-          showToast("🎧 Real headphones detected! Auto-plugged jack.");
+          showToast("Real headphones detected: auto-connected");
         }
       } catch (err) {
         console.warn('Physical device detection check:', err);
@@ -1406,7 +1463,7 @@ function handleAudioFilesImport(files) {
     return;
   }
 
-  showToast(`📥 Importing ${validFiles.length} song${validFiles.length > 1 ? 's' : ''}...`);
+  showToast(`Importing ${validFiles.length} song${validFiles.length > 1 ? 's' : ''}...`);
 
   audioEngine.importAudioFiles(validFiles).then((importedTracks) => {
     screenRenderer.setTracks(audioEngine.tracks);
@@ -1425,10 +1482,10 @@ function handleAudioFilesImport(files) {
     screenRenderer.setTrack(firstTrack, isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
 
-    showToast(`🎵 Playing: ${firstTrack.title}`);
+    showToast(`Playing: ${firstTrack.title}`);
   }).catch((err) => {
     console.error(err);
-    showToast("Could not import audio files.");
+    showToast("Could not import audio files");
   });
 }
 
