@@ -4,7 +4,54 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>FeelPod 3D — Classic MP3 Player Simulator</title>
+
+  <!-- Primary Meta Tags & SEO -->
+  <meta name="title" content="FeelPod 3D — Classic MP3 Player Simulator" />
+  <meta name="description" content="Authentic 3D MP3 Player web simulator featuring responsive click wheel physics, live LCD equalizer, lossless local audio playback, and Apple Liquid Glass design." />
+  <meta name="keywords" content="FeelPod 3D, MP3 Player Simulator, 3D iPod, Classic iPod 3D, Web Audio API, Click Wheel, Three.js Audio Player, Retro Music Player, PWA" />
+  <meta name="author" content="Bhagyesh Purohit" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#ffffff" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://feelpod3d.devs.li/" />
+  <meta property="og:title" content="FeelPod 3D — Classic MP3 Player Simulator" />
+  <meta property="og:description" content="Authentic 3D MP3 Player web simulator with responsive click wheel physics, live LCD equalizer, lossless local audio playback, and Apple Liquid Glass design." />
+  <meta property="og:image" content="/icons/icon-512.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://feelpod3d.devs.li/" />
+  <meta name="twitter:title" content="FeelPod 3D — Classic MP3 Player Simulator" />
+  <meta name="twitter:description" content="Relive the tactile joy of the classic portable MP3 player directly in your browser with real-time 3D audio, click wheel, and Apple glass styling." />
+  <meta name="twitter:image" content="/icons/icon-512.png" />
+
+  <!-- Apple Touch & Add to Home Screen (PWA) -->
+  <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="FeelPod 3D" />
+  <meta name="application-name" content="FeelPod 3D" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "FeelPod 3D",
+    "url": "https://feelpod3d.devs.li/",
+    "description": "Tactile 3D MP3 Player Simulator with Apple Glass design, Click Wheel, and Web Audio API",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires WebGL and Web Audio API support"
+  }
+  </script>
+
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body style="background-color: #ffffff;">
@@ -134,7 +181,6 @@
         <button class="color-swatch" data-theme="pacific" title="Pacific Deep Navy" style="background: #1e293b;"></button>
         <button class="color-swatch" data-theme="emerald" title="Alpine Pine" style="background: #2d4030;"></button>
         <button class="color-swatch" data-theme="burgundy" title="Cabernet Velvet" style="background: #4a1525;"></button>
-        <button class="color-swatch" data-theme="u2" title="U2 Collector Edition (Black & Red)" style="background: linear-gradient(135deg, #0a0b0d 50%, #dc2626 50%);"></button>
       </div>
     </div>
 
@@ -281,9 +327,10 @@
                 <span>GitHub Repository</span>
               </a>
 
-              <a href="https://github.com/PurohitBhagyesh/FeelPod-3D/issues/new" target="_blank" rel="noopener noreferrer" class="contact-link-btn email-btn">
+              <a href="mailto:Purohitunofficialbhagyesh@gmail.com?subject=FeelPod%203D%20Feedback%20%26%20Ideas" class="contact-link-btn email-btn">
                 <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
                 </svg>
                 <span>Submit Feedback & Ideas</span>
               </a>

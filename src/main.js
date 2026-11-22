@@ -120,14 +120,6 @@ const THEME_PRESETS = {
     wheelCenter: '#4a1525',
     wheelText: '#fae8eb',
     jack: '#4a1525'
-  },
-  u2: {
-    name: 'U2 Collector Edition',
-    casing: '#0a0b0d',
-    wheel: '#dc2626',
-    wheelCenter: '#0a0b0d',
-    wheelText: '#ffffff',
-    jack: '#0a0b0d'
   }
 };
 
@@ -1404,15 +1396,16 @@ function setupVirtualWheelHUD() {
   const vBtnPrev = document.getElementById('vbtn-prev');
   const vBtnNext = document.getElementById('vbtn-next');
   const vBtnCenter = document.getElementById('vbtn-center');
+  if (!vWheelOuter) return;
 
-  vBtnMenu.addEventListener('click', () => {
+  function handleMenu() {
     audioEngine.playButtonPress();
     flashWheelButton('menu');
     screenRenderer.goBack();
     if (screenTexture) screenTexture.needsUpdate = true;
-  });
+  }
 
-  vBtnCenter.addEventListener('click', () => {
+  function handleSelect() {
     audioEngine.playButtonPress();
     flashWheelButton('select');
     const res = screenRenderer.selectCurrent();
@@ -1434,9 +1427,9 @@ function setupVirtualWheelHUD() {
       }
     }
     if (screenTexture) screenTexture.needsUpdate = true;
-  });
+  }
 
-  vBtnPlay.addEventListener('click', () => {
+  function handlePlay() {
     flashWheelButton('play');
     if (audioEngine.tracks.length === 0) {
       showToast("Library is empty. Import songs to play.");
@@ -1449,24 +1442,33 @@ function setupVirtualWheelHUD() {
       screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
       if (screenTexture) screenTexture.needsUpdate = true;
     }
-  });
+  }
 
-  vBtnPrev.addEventListener('click', () => {
+  function handlePrev() {
     flashWheelButton('prev');
     const track = audioEngine.prevTrack();
     screenRenderer.setTrack(track, audioEngine.isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
-  });
+  }
 
-  vBtnNext.addEventListener('click', () => {
+  function handleNext() {
     flashWheelButton('next');
     const track = audioEngine.nextTrack();
     screenRenderer.setTrack(track, audioEngine.isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
+  }
+
+  // Direct center button listener
+  vBtnCenter.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleSelect();
   });
 
-  // Touch rotary scrubbing on Virtual Wheel
+  // Mobile-Optimized Rotary Scrubbing & Tactile Zone Tap
   let isVDragging = false;
+  let hasRotated = false;
+  let startX = 0;
+  let startY = 0;
   let lastVAngle = 0;
   let accumulatedVAngle = 0;
 
@@ -1478,18 +1480,34 @@ function setupVirtualWheelHUD() {
   }
 
   vWheelOuter.addEventListener('pointerdown', (e) => {
-    if (e.target !== vWheelOuter) return;
+    // If center button, let its click event handle it
+    if (e.target === vBtnCenter) return;
+
     isVDragging = true;
+    hasRotated = false;
+    startX = e.clientX;
+    startY = e.clientY;
     lastVAngle = getVAngle(e.clientX, e.clientY);
     accumulatedVAngle = 0;
+
+    if (vWheelOuter.setPointerCapture) {
+      vWheelOuter.setPointerCapture(e.pointerId);
+    }
   });
 
-  window.addEventListener('pointermove', (e) => {
+  vWheelOuter.addEventListener('pointermove', (e) => {
     if (!isVDragging) return;
+
+    const distMoved = Math.hypot(e.clientX - startX, e.clientY - startY);
     const currentAngle = getVAngle(e.clientX, e.clientY);
     let delta = currentAngle - lastVAngle;
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
+
+    if (distMoved > 6 || Math.abs(delta) > 0.05) {
+      hasRotated = true;
+    }
+
     accumulatedVAngle += delta;
     lastVAngle = currentAngle;
 
@@ -1509,32 +1527,95 @@ function setupVirtualWheelHUD() {
     }
   });
 
-  window.addEventListener('pointerup', () => {
+  vWheelOuter.addEventListener('pointerup', (e) => {
+    if (!isVDragging) return;
+    isVDragging = false;
+
+    if (vWheelOuter.releasePointerCapture && e.pointerId) {
+      try { vWheelOuter.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    // If released without rotating, process clean directional tap
+    if (!hasRotated && e.target !== vBtnCenter) {
+      const angle = getVAngle(e.clientX, e.clientY);
+      // Normalized angle in degrees (-180 to 180)
+      const deg = angle * (180 / Math.PI);
+
+      if (deg >= -135 && deg <= -45) {
+        handleMenu(); // Top: MENU
+      } else if (deg >= 45 && deg <= 135) {
+        handlePlay(); // Bottom: PLAY
+      } else if (deg > 135 || deg < -135) {
+        handlePrev(); // Left: PREV
+      } else {
+        handleNext(); // Right: NEXT
+      }
+    }
+  });
+
+  vWheelOuter.addEventListener('pointercancel', () => {
     isVDragging = false;
   });
 }
 
-// --- Auto-Connect Real Physical Headphones ---
-function setupPhysicalHeadphoneDetection() {
-  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-    navigator.mediaDevices.addEventListener('devicechange', async () => {
-      if (!simulatorSettings.autoPlug) return;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
-        const hasHeadphones = audioOutputs.some(d =>
-          /headphone|headset|earbud|airpod|earphone|audio/i.test(d.label)
-        );
+// --- Auto-Connect & Auto-Disconnect Real Physical Headphones ---
+let baselineDeviceCount = null;
 
-        if (hasHeadphones && !isPluggedIn) {
-          toggleHeadphonePlug(true);
-          showToast("Real headphones detected: auto-connected");
-        }
-      } catch (err) {
-        console.warn('Physical device detection check:', err);
+function setupPhysicalHeadphoneDetection() {
+  async function checkHeadphones(isInit = false) {
+    if (!simulatorSettings.autoPlug) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioOutputs = devices.filter(d => d.kind === 'audiooutput' || d.kind === 'audioinput');
+
+      // Check device labels for headphone keywords (AirPods, wired headphones, Bluetooth, etc.)
+      const hasHeadphones = audioOutputs.some(d =>
+        /headphone|headset|earbud|airpod|earphone|bluetooth|beats|sony|bose|external/i.test(d.label)
+      );
+
+      // Track baseline device count when labels might be masked by browser privacy
+      if (baselineDeviceCount === null) {
+        baselineDeviceCount = audioOutputs.length;
       }
-    });
+
+      // Check if only internal speaker is present
+      const isInternalSpeakerOnly = audioOutputs.length > 0 && audioOutputs.every(d =>
+        /speaker|built-in|internal/i.test(d.label)
+      );
+
+      const isConnected = hasHeadphones || (!isInternalSpeakerOnly && audioOutputs.length > baselineDeviceCount);
+
+      if (isConnected) {
+        if (!isPluggedIn) {
+          toggleHeadphonePlug(true);
+          showToast("Headphones connected: 3D jack auto-plugged");
+        }
+      } else {
+        if (isPluggedIn && !isInit) {
+          toggleHeadphonePlug(false);
+          showToast("Headphones removed: 3D jack unplugged");
+        }
+      }
+    } catch (err) {
+      console.warn('Physical headphone detection check:', err);
+    }
   }
+
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', () => checkHeadphones(false));
+  }
+  window.addEventListener('focus', () => checkHeadphones(false));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkHeadphones(false);
+  });
+
+  // Initial check on page load
+  checkHeadphones(true);
+
+  // Periodic polling every 3.5s for seamless automatic removal on mobile/desktop
+  setInterval(() => checkHeadphones(false), 3500);
 }
 
 // --- Load Saved Settings & Custom Background ---
