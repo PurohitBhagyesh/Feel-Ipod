@@ -8,66 +8,161 @@ export class iPodScreenRenderer {
     this.ctx = this.canvas.getContext('2d');
     this.needsUpdate = true;
 
-    this.currentView = 'menu'; // 'menu' or 'nowPlaying'
-    this.selectedIndex = 0;
-    this.menuTitle = 'iPod';
-    this.menuItems = [
-      { id: 'music', label: 'Music', hasSub: true },
-      { id: 'nowPlaying', label: 'Now Playing', hasSub: true },
-      { id: 'color', label: 'Color Studio', hasSub: true },
-      { id: 'shuffle', label: 'Shuffle Songs', hasSub: false },
-      { id: 'backlight', label: 'Backlight', hasSub: false },
-      { id: 'settings', label: 'Settings', hasSub: true }
-    ];
-
-    this.batteryLevel = 0.85;
-    this.isPlaying = false;
-    this.currentTrack = {
-      title: "Feel Good Inc.",
-      artist: "Gorillaz",
-      album: "Demon Days (2005)",
-      duration: "3:42",
-      progress: 0.35
+    // View State: 'root', 'music', 'songs', 'nowPlaying'
+    this.viewStack = ['root'];
+    this.selectedIndices = {
+      root: 0,
+      music: 0,
+      songs: 0
     };
+
+    this.backlightOn = true;
+    this.volumePopupTime = 0;
+    this.volumeLevel = 0.85;
+
+    // Dynamic library of tracks
+    this.tracks = [];
+    this.currentTrack = {
+      title: "Retro Groove",
+      artist: "Antigravity Sound",
+      album: "Nostalgia Vibes",
+      duration: "3:24",
+      currentTimeStr: "0:00",
+      progress: 0.0
+    };
+
+    this.isPlaying = false;
+    this.isHeadphonesPlugged = false;
+    this.batteryLevel = 0.90;
+  }
+
+  setTracks(tracks) {
+    this.tracks = tracks;
+    this.needsUpdate = true;
+  }
+
+  getCurrentView() {
+    return this.viewStack[this.viewStack.length - 1];
+  }
+
+  getMenuItems() {
+    const view = this.getCurrentView();
+    if (view === 'root') {
+      return [
+        { id: 'music', label: 'Music', hasSub: true },
+        { id: 'nowPlaying', label: 'Now Playing', hasSub: true },
+        { id: 'backlight', label: `Backlight: ${this.backlightOn ? 'On' : 'Off'}`, hasSub: false },
+        { id: 'shuffle', label: 'Shuffle Songs', hasSub: false },
+        { id: 'import', label: 'Import MP3...', hasSub: false }
+      ];
+    } else if (view === 'music') {
+      return [
+        { id: 'songs', label: 'Songs', hasSub: true },
+        { id: 'artists', label: 'Artists', hasSub: false },
+        { id: 'albums', label: 'Albums', hasSub: false }
+      ];
+    } else if (view === 'songs') {
+      return this.tracks.map((t, idx) => ({
+        id: `song-${idx}`,
+        trackId: t.id,
+        label: t.title,
+        sub: t.artist,
+        hasSub: false
+      }));
+    }
+    return [];
   }
 
   scroll(delta) {
-    if (this.currentView === 'menu') {
-      const prev = this.selectedIndex;
-      this.selectedIndex = Math.max(0, Math.min(this.menuItems.length - 1, this.selectedIndex + delta));
-      if (prev !== this.selectedIndex) {
-        this.needsUpdate = true;
-      }
-    } else if (this.currentView === 'nowPlaying') {
-      // Adjust progress scrubber
-      this.currentTrack.progress = Math.max(0, Math.min(1.0, this.currentTrack.progress + delta * 0.05));
+    const view = this.getCurrentView();
+    if (view === 'nowPlaying') {
+      // Seek track forward/backward
+      this.currentTrack.progress = Math.max(0, Math.min(1.0, this.currentTrack.progress + delta * 0.02));
+      this.needsUpdate = true;
+      return;
+    }
+
+    const items = this.getMenuItems();
+    if (!items.length) return;
+
+    const currIdx = this.selectedIndices[view] || 0;
+    const newIdx = Math.max(0, Math.min(items.length - 1, currIdx + delta));
+    if (newIdx !== currIdx) {
+      this.selectedIndices[view] = newIdx;
       this.needsUpdate = true;
     }
   }
 
   selectCurrent() {
-    if (this.currentView === 'menu') {
-      const item = this.menuItems[this.selectedIndex];
-      if (item.id === 'nowPlaying' || item.id === 'music') {
-        this.currentView = 'nowPlaying';
-        this.needsUpdate = true;
+    const view = this.getCurrentView();
+    const items = this.getMenuItems();
+    const currIdx = this.selectedIndices[view] || 0;
+    const item = items[currIdx];
+
+    if (!item) return null;
+
+    if (view === 'root') {
+      if (item.id === 'music') {
+        this.viewStack.push('music');
+        this.selectedIndices.music = 0;
+      } else if (item.id === 'nowPlaying') {
+        this.viewStack.push('nowPlaying');
+      } else if (item.id === 'backlight') {
+        this.backlightOn = !this.backlightOn;
+      } else if (item.id === 'import') {
+        window.dispatchEvent(new CustomEvent('ipod-request-import'));
       }
-    } else {
-      this.currentView = 'menu';
+    } else if (view === 'music') {
+      if (item.id === 'songs') {
+        this.viewStack.push('songs');
+        this.selectedIndices.songs = 0;
+      }
+    } else if (view === 'songs') {
+      // User selected a song!
+      this.viewStack.push('nowPlaying');
       this.needsUpdate = true;
+      return { action: 'playTrack', trackId: item.trackId };
+    } else if (view === 'nowPlaying') {
+      // Toggle play/pause
+      return { action: 'togglePlay' };
     }
+
+    this.needsUpdate = true;
+    return null;
   }
 
   goBack() {
-    if (this.currentView !== 'menu') {
-      this.currentView = 'menu';
+    if (this.viewStack.length > 1) {
+      this.viewStack.pop();
       this.needsUpdate = true;
+      return true;
     }
+    return false;
+  }
+
+  showVolume(vol) {
+    this.volumeLevel = vol;
+    this.volumePopupTime = Date.now() + 2000;
+    this.needsUpdate = true;
   }
 
   setTrack(track, isPlaying) {
-    this.currentTrack = { ...this.currentTrack, ...track };
+    this.currentTrack = {
+      ...this.currentTrack,
+      ...track,
+      duration: track.duration || "3:30"
+    };
     this.isPlaying = isPlaying;
+    this.needsUpdate = true;
+  }
+
+  setTimeUpdate(currentTime, duration, progress) {
+    this.currentTrack.progress = progress;
+    if (currentTime !== undefined) {
+      const mins = Math.floor(currentTime / 60);
+      const secs = ('0' + Math.floor(currentTime % 60)).slice(-2);
+      this.currentTrack.currentTimeStr = `${mins}:${secs}`;
+    }
     this.needsUpdate = true;
   }
 
@@ -77,44 +172,62 @@ export class iPodScreenRenderer {
     const w = this.canvas.width;
     const h = this.canvas.height;
 
-    // 1. Classic Light Gray LCD background with subtle scanline texture
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0, '#f9f9fa');
-    bgGrad.addColorStop(1, '#e8e8ed');
-    ctx.fillStyle = bgGrad;
+    // 1. LCD Background
+    if (this.backlightOn) {
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#fbfbfe');
+      bgGrad.addColorStop(1, '#e5e5ea');
+      ctx.fillStyle = bgGrad;
+    } else {
+      // Backlight off: authentic greenish-grey passive LCD
+      ctx.fillStyle = '#8f9a88';
+    }
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Status Bar (Top Header)
+    // 2. Status Bar
     this.drawStatusBar(ctx, w);
 
-    // 3. Content Area
-    if (this.currentView === 'menu') {
-      this.drawMenu(ctx, w, h);
-    } else {
+    // 3. Screen Content
+    const view = this.getCurrentView();
+    if (view === 'nowPlaying') {
       this.drawNowPlaying(ctx, w, h);
+    } else {
+      this.drawMenuList(ctx, w, h, view);
     }
 
-    this.needsUpdate = false;
+    // 4. Volume HUD Overlay (if active)
+    if (Date.now() < this.volumePopupTime) {
+      this.drawVolumeOverlay(ctx, w, h);
+      // Keep requesting update until popup fades
+      this.needsUpdate = true;
+    } else {
+      this.needsUpdate = false;
+    }
+
     return true;
   }
 
   drawStatusBar(ctx, w) {
-    const headerHeight = 44;
-    const grad = ctx.createLinearGradient(0, 0, 0, headerHeight);
-    grad.addColorStop(0, '#e2e2e7');
-    grad.addColorStop(0.5, '#cbcbd0');
-    grad.addColorStop(1, '#a6a6af');
+    const h = 44;
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    if (this.backlightOn) {
+      grad.addColorStop(0, '#e2e2e7');
+      grad.addColorStop(0.5, '#cbcbd0');
+      grad.addColorStop(1, '#a6a6af');
+    } else {
+      grad.addColorStop(0, '#7d8876');
+      grad.addColorStop(1, '#687361');
+    }
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, headerHeight);
+    ctx.fillRect(0, 0, w, h);
 
-    // Bottom border line of status bar
-    ctx.fillStyle = '#6b6b72';
-    ctx.fillRect(0, headerHeight - 1, w, 1);
+    // Bottom border
+    ctx.fillStyle = this.backlightOn ? '#6b6b72' : '#4f5948';
+    ctx.fillRect(0, h - 1, w, 1);
 
-    // Play / Pause Indicator
-    ctx.fillStyle = '#1c1c1e';
+    // Play/Pause icon (Left)
+    ctx.fillStyle = this.backlightOn ? '#111111' : '#1e241b';
     if (this.isPlaying) {
-      // Triangle Play icon
       ctx.beginPath();
       ctx.moveTo(18, 14);
       ctx.lineTo(30, 22);
@@ -122,136 +235,146 @@ export class iPodScreenRenderer {
       ctx.closePath();
       ctx.fill();
     } else {
-      // Pause 2 bars
       ctx.fillRect(18, 14, 4, 16);
       ctx.fillRect(26, 14, 4, 16);
     }
 
-    // Title in center
-    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#111111';
-    ctx.fillText(this.currentView === 'menu' ? this.menuTitle : 'Now Playing', w / 2, 29);
+    // Headphones icon (if plugged)
+    if (this.isHeadphonesPlugged) {
+      ctx.font = '16px -apple-system, sans-serif';
+      ctx.fillText('🎧', 40, 28);
+    }
 
-    // Battery Indicator on right
-    const bx = w - 60;
+    // Screen Title (Center)
+    let title = 'iPod';
+    const view = this.getCurrentView();
+    if (view === 'music') title = 'Music';
+    else if (view === 'songs') title = 'Songs';
+    else if (view === 'nowPlaying') title = 'Now Playing';
+
+    ctx.font = 'bold 21px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, w / 2, 29);
+
+    // Battery Indicator (Right)
+    const bx = w - 58;
     const by = 14;
-    ctx.strokeStyle = '#2c2c2e';
+    ctx.strokeStyle = this.backlightOn ? '#2c2c2e' : '#1e241b';
     ctx.lineWidth = 2;
-    ctx.strokeRect(bx, by, 34, 16);
-    // Battery tip
-    ctx.fillRect(bx + 34, by + 4, 3, 8);
-    // Battery fill (green)
+    ctx.strokeRect(bx, by, 32, 16);
+    ctx.fillRect(bx + 32, by + 4, 3, 8);
     ctx.fillStyle = '#34C759';
-    ctx.fillRect(bx + 2, by + 2, 30 * this.batteryLevel, 12);
+    ctx.fillRect(bx + 2, by + 2, 28 * this.batteryLevel, 12);
   }
 
-  drawMenu(ctx, w, h) {
+  drawMenuList(ctx, w, h, view) {
+    const items = this.getMenuItems();
     const itemHeight = 48;
     const startY = 46;
+    const selectedIdx = this.selectedIndices[view] || 0;
 
-    this.menuItems.forEach((item, index) => {
+    items.forEach((item, index) => {
       const y = startY + index * itemHeight;
-      const isSelected = index === this.selectedIndex;
+      if (y + itemHeight > h - 20) return; // limit to screen
+
+      const isSelected = index === selectedIdx;
 
       if (isSelected) {
-        // Iconic Apple Blue selection highlight gradient
-        const hl = ctx.createLinearGradient(0, y, 0, y + itemHeight);
-        hl.addColorStop(0, '#5390fc');
-        hl.addColorStop(0.5, '#2e6be6');
-        hl.addColorStop(1, '#1851c7');
-        ctx.fillStyle = hl;
+        if (this.backlightOn) {
+          const hl = ctx.createLinearGradient(0, y, 0, y + itemHeight);
+          hl.addColorStop(0, '#5390fc');
+          hl.addColorStop(0.5, '#2e6be6');
+          hl.addColorStop(1, '#1851c7');
+          ctx.fillStyle = hl;
+        } else {
+          ctx.fillStyle = '#4f5948';
+        }
         ctx.fillRect(0, y, w, itemHeight);
-
-        // Top/bottom crisp outline
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillRect(0, y, w, 1);
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.fillRect(0, y + itemHeight - 1, w, 1);
       }
 
-      // Label text
-      ctx.font = isSelected ? 'bold 22px -apple-system, sans-serif' : '22px -apple-system, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillStyle = isSelected ? '#ffffff' : '#000000';
-      ctx.fillText(item.label, 24, y + 31);
+      ctx.font = isSelected ? 'bold 21px -apple-system, sans-serif' : '21px -apple-system, sans-serif';
+      ctx.fillStyle = isSelected ? '#ffffff' : (this.backlightOn ? '#000000' : '#1e241b');
 
-      // Chevron arrow for submenus (>)
+      // Label truncation if needed
+      const maxTextWidth = w - 60;
+      let label = item.label;
+      if (ctx.measureText(label).width > maxTextWidth) {
+        while (ctx.measureText(label + '...').width > maxTextWidth && label.length > 0) {
+          label = label.slice(0, -1);
+        }
+        label += '...';
+      }
+
+      ctx.fillText(label, 20, y + 31);
+
       if (item.hasSub) {
         ctx.font = 'bold 22px -apple-system, sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillStyle = isSelected ? '#ffffff' : '#8e8e93';
-        ctx.fillText('›', w - 24, y + 31);
+        ctx.fillStyle = isSelected ? '#ffffff' : (this.backlightOn ? '#8e8e93' : '#333b2e');
+        ctx.fillText('›', w - 20, y + 31);
       }
     });
 
-    // Subdued iPod trademark footer
+    // Subdued helper hint
     ctx.font = 'italic 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#8e8e93';
-    ctx.fillText('Scroll wheel to navigate • Center to select', w / 2, h - 16);
+    ctx.fillStyle = this.backlightOn ? '#8e8e93' : '#333b2e';
+    ctx.fillText('Scroll wheel to navigate • Center to select', w / 2, h - 14);
   }
 
   drawNowPlaying(ctx, w, h) {
-    // Album Art Box (Left)
-    const artSize = 150;
-    const artX = 36;
-    const artY = 70;
+    const artSize = 144;
+    const artX = 32;
+    const artY = 68;
 
-    // Album art gradient mock
+    // Album Art Box with vinyl groove
     const artGrad = ctx.createLinearGradient(artX, artY, artX + artSize, artY + artSize);
-    artGrad.addColorStop(0, '#4facfe');
-    artGrad.addColorStop(1, '#00f2fe');
+    artGrad.addColorStop(0, '#fd746c');
+    artGrad.addColorStop(1, '#ff9068');
     ctx.fillStyle = artGrad;
     ctx.fillRect(artX, artY, artSize, artSize);
 
-    // Subtle vinyl record icon on art
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(artX + artSize/2, artY + artSize/2, 45, 0, Math.PI * 2);
+    ctx.arc(artX + artSize/2, artY + artSize/2, 44, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(artX + artSize/2, artY + artSize/2, 20, 0, Math.PI * 2);
+    ctx.arc(artX + artSize/2, artY + artSize/2, 18, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Track Metadata (Right)
-    const textX = artX + artSize + 28;
+    // Metadata
+    const textX = artX + artSize + 24;
     ctx.textAlign = 'left';
-    
-    // Title
-    ctx.font = 'bold 24px -apple-system, sans-serif';
-    ctx.fillStyle = '#000000';
-    ctx.fillText(this.currentTrack.title, textX, 105);
 
-    // Artist
-    ctx.font = '20px -apple-system, sans-serif';
-    ctx.fillStyle = '#444444';
-    ctx.fillText(this.currentTrack.artist, textX, 140);
+    ctx.font = 'bold 23px -apple-system, sans-serif';
+    ctx.fillStyle = this.backlightOn ? '#000000' : '#1e241b';
+    const title = this.currentTrack.title.length > 18 ? this.currentTrack.title.slice(0, 16) + '...' : this.currentTrack.title;
+    ctx.fillText(title, textX, 102);
 
-    // Album
-    ctx.font = '17px -apple-system, sans-serif';
-    ctx.fillStyle = '#666666';
-    ctx.fillText(this.currentTrack.album, textX, 172);
+    ctx.font = '19px -apple-system, sans-serif';
+    ctx.fillStyle = this.backlightOn ? '#3a3a3c' : '#2b3327';
+    const artist = this.currentTrack.artist.length > 20 ? this.currentTrack.artist.slice(0, 18) + '...' : this.currentTrack.artist;
+    ctx.fillText(artist, textX, 134);
 
-    // Scrubber / Progress Bar
-    const barX = 36;
-    const barY = 250;
-    const barW = w - 72;
+    ctx.font = '16px -apple-system, sans-serif';
+    ctx.fillStyle = this.backlightOn ? '#636366' : '#3d4737';
+    ctx.fillText(this.currentTrack.album || "Album", textX, 164);
+
+    // Progress Scrubber Bar
+    const barX = 32;
+    const barY = 246;
+    const barW = w - 64;
     const barH = 12;
 
-    // Bar background
-    ctx.fillStyle = '#d1d1d6';
+    ctx.fillStyle = this.backlightOn ? '#d1d1d6' : '#687361';
     ctx.beginPath();
     ctx.roundRect(barX, barY, barW, barH, 6);
     ctx.fill();
 
-    // Bar progress fill
-    const progressW = barW * (this.currentTrack.progress || 0.35);
-    const fillGrad = ctx.createLinearGradient(barX, barY, barX + progressW, barY);
-    fillGrad.addColorStop(0, '#3478F6');
-    fillGrad.addColorStop(1, '#5390fc');
-    ctx.fillStyle = fillGrad;
+    const progressW = barW * Math.max(0, Math.min(1.0, this.currentTrack.progress || 0));
+    ctx.fillStyle = this.backlightOn ? '#3478F6' : '#2b3327';
     ctx.beginPath();
     ctx.roundRect(barX, barY, progressW, barH, 6);
     ctx.fill();
@@ -263,22 +386,62 @@ export class iPodScreenRenderer {
     ctx.strokeStyle = '#2c2c2e';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(px, py, 9, 0, Math.PI * 2);
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Elapsed / Remaining Time
+    // Time elapsed and remaining
     ctx.font = '16px -apple-system, sans-serif';
-    ctx.fillStyle = '#666666';
+    ctx.fillStyle = this.backlightOn ? '#636366' : '#333b2e';
     ctx.textAlign = 'left';
-    ctx.fillText('1:18', barX, barY + 34);
+    ctx.fillText(this.currentTrack.currentTimeStr || "0:00", barX, barY + 34);
+
     ctx.textAlign = 'right';
     ctx.fillText('-' + this.currentTrack.duration, barX + barW, barY + 34);
 
-    // Hint
     ctx.font = 'italic 15px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#8e8e93';
-    ctx.fillText('Press MENU to return to Menu', w / 2, h - 22);
+    ctx.fillStyle = this.backlightOn ? '#8e8e93' : '#333b2e';
+    ctx.fillText('Press MENU to go back', w / 2, h - 18);
+  }
+
+  drawVolumeOverlay(ctx, w, h) {
+    const popW = 280;
+    const popH = 68;
+    const popX = (w - popW) / 2;
+    const popY = (h - popH) / 2;
+
+    // Translucent rounded card
+    ctx.fillStyle = 'rgba(28, 28, 30, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(popX, popY, popW, popH, 14);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Speaker icon
+    ctx.font = '20px sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔊', popX + 30, popY + 41);
+
+    // Volume level bar
+    const barX = popX + 54;
+    const barY = popY + 28;
+    const barW = 196;
+    const barH = 12;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 6);
+    ctx.fill();
+
+    const fillW = barW * this.volumeLevel;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, fillW, barH, 6);
+    ctx.fill();
   }
 }

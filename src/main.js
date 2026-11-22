@@ -7,6 +7,7 @@ import { audioEngine } from './audioEffects.js';
 // --- State & Variables ---
 let scene, camera, renderer, controls;
 let ipodGroup, earphonesGroup;
+let headphoneJackPlug; // Physical 3.5mm connector mesh
 let screenTexture, screenRenderer;
 let bodyMaterial, wheelMaterial, backMaterial, earphoneMaterial;
 
@@ -15,6 +16,16 @@ let currentColorHex = '#f5f5f7';
 let currentHue = 0;
 let currentSat = 0;
 let currentLight = 0.90;
+
+// Earphones Plug State & Animation
+let isEarphonesPlugged = false;
+let isPlugAnimating = false;
+let plugAnimProgress = 0; // 0 = unplugged on table, 1 = plugged into port
+const PLUG_POS_UNPLUGGED = new THREE.Vector3(-0.55, -0.985, 0.25);
+const PLUG_ROT_UNPLUGGED = new THREE.Euler(0, Math.PI / 4, Math.PI / 2);
+const PLUG_POS_HOVER = new THREE.Vector3(0, 1.25, 0);
+const PLUG_POS_PLUGGED = new THREE.Vector3(0, 0.995, 0);
+const PLUG_ROT_PLUGGED = new THREE.Euler(0, 0, 0);
 
 // Settings State
 let settings = {
@@ -25,17 +36,29 @@ let settings = {
   theme: 'dark'
 };
 
+// Camera Views (Including Top view for headphone jack)
 const cameraTargets = {
   cinematic: { pos: new THREE.Vector3(0, 0.4, 4.2), target: new THREE.Vector3(0, 0, 0) },
   studio: { pos: new THREE.Vector3(1.8, 1.4, 2.8), target: new THREE.Vector3(0, 0, 0) },
   front: { pos: new THREE.Vector3(0, 0.1, 3.0), target: new THREE.Vector3(0, 0, 0) },
   back: { pos: new THREE.Vector3(0, 0.1, -3.0), target: new THREE.Vector3(0, 0, 0) },
-  earphones: { pos: new THREE.Vector3(-1.8, 0.8, 1.2), target: new THREE.Vector3(-1.0, -0.2, 0.2) }
+  top: { pos: new THREE.Vector3(0, 2.8, 0.05), target: new THREE.Vector3(0, 0.8, 0) },
+  earphones: { pos: new THREE.Vector3(-1.8, 0.8, 1.2), target: new THREE.Vector3(-0.9, -0.4, 0.2) }
 };
 
 let activeCamTarget = cameraTargets.cinematic;
-let currentViewIndex = 0;
-const viewKeys = ['studio', 'front', 'back', 'earphones'];
+
+// Toast Helper
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('active');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.classList.remove('active');
+  }, 3200);
+}
 
 // --- Initialize Scene ---
 function init() {
@@ -60,36 +83,55 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
-  // Orbit Controls
+  // Free 360° Orbit Controls
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 1.2;
-  controls.maxDistance = 6.0;
-  controls.maxPolarAngle = Math.PI / 2 + 0.05;
+  controls.dampingFactor = 0.06;
+  controls.minDistance = 0.8;
+  controls.maxDistance = 7.0;
+  // Free 360° vertical & horizontal rotation
+  controls.minPolarAngle = 0.02;
+  controls.maxPolarAngle = Math.PI - 0.02;
   controls.target.copy(cameraTargets.cinematic.target);
   controls.autoRotate = false;
   controls.autoRotateSpeed = 1.2;
 
-  // Setup Lighting & Stage
+  // Setup Stage & Lighting
   setupLighting();
   createFloor();
 
   // Screen Engine
   screenRenderer = new iPodScreenRenderer();
+  screenRenderer.setTracks(audioEngine.tracks);
   screenRenderer.render();
   screenTexture = new THREE.CanvasTexture(screenRenderer.canvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  // Load 3D Models
+  // Build the 3.5mm Headphone Jack Plug
+  createHeadphoneJackPlug();
+
+  // Load Models
   loadModels();
 
-  // Color Wheel & Navigation
+  // Setup Features
   setupColorWheel();
   setupUI();
   setupSettings();
   setupWelcomeScreen();
+  setupMP3Importer();
+  setupDirect3DInteraction();
+
+  // Sync Audio Time Updates with Screen
+  window.addEventListener('ipod-timeupdate', (e) => {
+    screenRenderer.setTimeUpdate(e.detail.currentTime, e.detail.duration, e.detail.progress);
+    screenTexture.needsUpdate = true;
+  });
+
+  // Handle Screen Menu Custom Events
+  window.addEventListener('ipod-request-import', () => {
+    document.getElementById('mp3-file-input').click();
+  });
 
   // Responsive Resizing
   window.addEventListener('resize', onWindowResize);
@@ -126,9 +168,9 @@ function setupLighting() {
   scene.add(bounceLight);
 }
 
-// --- Stage Floor ---
+// --- Floor with soft contact shadow ---
 function createFloor() {
-  const floorGeo = new THREE.PlaneGeometry(20, 20);
+  const floorGeo = new THREE.PlaneGeometry(24, 24);
   const floorMat = new THREE.MeshStandardMaterial({
     color: 0x0c0c10,
     roughness: 0.75,
@@ -164,6 +206,59 @@ function createFloor() {
   contactShadow.rotation.x = -Math.PI / 2;
   contactShadow.position.set(0, -1.01, 0);
   scene.add(contactShadow);
+}
+
+// --- Procedural 3.5mm Headphone Jack Plug Connector ---
+function createHeadphoneJackPlug() {
+  headphoneJackPlug = new THREE.Group();
+
+  // 1. Gold TRS Audio Pin
+  const pinMat = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    metalness: 0.95,
+    roughness: 0.15
+  });
+  const pinGeo = new THREE.CylinderGeometry(0.034, 0.034, 0.16, 24);
+  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+  pinMesh.position.y = 0.08;
+  pinMesh.castShadow = true;
+  headphoneJackPlug.add(pinMesh);
+
+  // Black insulator ring 1
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const ringGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.012, 24);
+  const ring1 = new THREE.Mesh(ringGeo, ringMat);
+  ring1.position.y = 0.04;
+  headphoneJackPlug.add(ring1);
+
+  // Black insulator ring 2
+  const ring2 = new THREE.Mesh(ringGeo, ringMat);
+  ring2.position.y = 0.09;
+  headphoneJackPlug.add(ring2);
+
+  // 2. White Strain Relief Grip
+  const gripMat = new THREE.MeshStandardMaterial({
+    color: 0xf5f5f7,
+    roughness: 0.35,
+    metalness: 0.05
+  });
+  const gripGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.22, 24);
+  const gripMesh = new THREE.Mesh(gripGeo, gripMat);
+  gripMesh.position.y = 0.27;
+  gripMesh.castShadow = true;
+  headphoneJackPlug.add(gripMesh);
+
+  // 3. Flexible cord strain tail
+  const tailGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.14, 16);
+  const tailMesh = new THREE.Mesh(tailGeo, gripMat);
+  tailMesh.position.y = 0.44;
+  headphoneJackPlug.add(tailMesh);
+
+  // Initial position: unplugged resting on the table
+  headphoneJackPlug.position.copy(PLUG_POS_UNPLUGGED);
+  headphoneJackPlug.rotation.copy(PLUG_ROT_UNPLUGGED);
+
+  scene.add(headphoneJackPlug);
 }
 
 // --- Load GLTF/GLB Models ---
@@ -272,6 +367,234 @@ function loadModels() {
   });
 }
 
+// --- Animate 3.5mm Headphone Plug In / Unplug ---
+function togglePlugEarphones() {
+  if (isPlugAnimating) return;
+  isPlugAnimating = true;
+  isEarphonesPlugged = !isEarphonesPlugged;
+
+  const targetState = isEarphonesPlugged;
+  const startPos = headphoneJackPlug.position.clone();
+  const startRot = headphoneJackPlug.rotation.clone();
+
+  const plugBtnText = document.getElementById('plug-text');
+  const plugIcon = document.getElementById('plug-icon');
+  const mobilePlugLabel = document.getElementById('mobile-plug-label');
+  const mobilePlugIcon = document.getElementById('mobile-plug-icon');
+
+  if (targetState) {
+    // Plugging in
+    if (plugBtnText) plugBtnText.textContent = "Unplug";
+    if (plugIcon) plugIcon.textContent = "🎧";
+    if (mobilePlugLabel) mobilePlugLabel.textContent = "Unplug";
+    if (mobilePlugIcon) mobilePlugIcon.textContent = "🎧";
+
+    // Camera look slightly towards top to enjoy the plug insertion
+    activeCamTarget = cameraTargets.top;
+    setTimeout(() => {
+      activeCamTarget = cameraTargets.front;
+    }, 1800);
+
+  } else {
+    // Unplugging
+    if (plugBtnText) plugBtnText.textContent = "Plug In";
+    if (plugIcon) plugIcon.textContent = "🔌";
+    if (mobilePlugLabel) mobilePlugLabel.textContent = "Plug";
+    if (mobilePlugIcon) mobilePlugIcon.textContent = "🔌";
+  }
+
+  const duration = 900; // ms
+  const startTime = Date.now();
+
+  function stepPlug() {
+    const elapsed = Date.now() - startTime;
+    const t = Math.min(1.0, elapsed / duration);
+    // Smooth easeInOutCubic
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    if (targetState) {
+      // Unplugged -> Hover -> Plugged
+      if (t < 0.5) {
+        const subT = t * 2;
+        headphoneJackPlug.position.lerpVectors(PLUG_POS_UNPLUGGED, PLUG_POS_HOVER, subT);
+        headphoneJackPlug.rotation.x = THREE.MathUtils.lerp(PLUG_ROT_UNPLUGGED.x, PLUG_ROT_PLUGGED.x, subT);
+        headphoneJackPlug.rotation.y = THREE.MathUtils.lerp(PLUG_ROT_UNPLUGGED.y, PLUG_ROT_PLUGGED.y, subT);
+        headphoneJackPlug.rotation.z = THREE.MathUtils.lerp(PLUG_ROT_UNPLUGGED.z, PLUG_ROT_PLUGGED.z, subT);
+      } else {
+        const subT = (t - 0.5) * 2;
+        headphoneJackPlug.position.lerpVectors(PLUG_POS_HOVER, PLUG_POS_PLUGGED, subT);
+        headphoneJackPlug.rotation.copy(PLUG_ROT_PLUGGED);
+      }
+    } else {
+      // Plugged -> Hover -> Unplugged
+      if (t < 0.5) {
+        const subT = t * 2;
+        headphoneJackPlug.position.lerpVectors(PLUG_POS_PLUGGED, PLUG_POS_HOVER, subT);
+        headphoneJackPlug.rotation.copy(PLUG_ROT_PLUGGED);
+      } else {
+        const subT = (t - 0.5) * 2;
+        headphoneJackPlug.position.lerpVectors(PLUG_POS_HOVER, PLUG_POS_UNPLUGGED, subT);
+        headphoneJackPlug.rotation.x = THREE.MathUtils.lerp(PLUG_ROT_PLUGGED.x, PLUG_ROT_UNPLUGGED.x, subT);
+        headphoneJackPlug.rotation.y = THREE.MathUtils.lerp(PLUG_ROT_PLUGGED.y, PLUG_ROT_UNPLUGGED.y, subT);
+        headphoneJackPlug.rotation.z = THREE.MathUtils.lerp(PLUG_ROT_PLUGGED.z, PLUG_ROT_UNPLUGGED.z, subT);
+      }
+    }
+
+    if (t < 1.0) {
+      requestAnimationFrame(stepPlug);
+    } else {
+      isPlugAnimating = false;
+      audioEngine.setHeadphonesPlugged(targetState);
+      screenRenderer.isHeadphonesPlugged = targetState;
+      screenTexture.needsUpdate = true;
+
+      if (targetState) {
+        showToast("🎧 Earphones plugged in! Sound activated.");
+        // Auto-play music if not playing
+        if (!audioEngine.isPlaying) {
+          audioEngine.toggleMusic(true);
+          screenRenderer.setTrack(audioEngine.getCurrentTrack(), true);
+          screenTexture.needsUpdate = true;
+        }
+      } else {
+        showToast("🔌 Earphones unplugged. Audio paused.");
+        screenRenderer.setTrack(audioEngine.getCurrentTrack(), false);
+        screenTexture.needsUpdate = true;
+      }
+    }
+  }
+
+  stepPlug();
+}
+
+// --- MP3 Import Drag & Drop Engine ---
+function setupMP3Importer() {
+  const dropOverlay = document.getElementById('drop-overlay');
+  const fileInput = document.getElementById('mp3-file-input');
+  const btnImport = document.getElementById('btn-import-mp3');
+  const btnMobileImport = document.getElementById('btn-mobile-import');
+
+  btnImport.addEventListener('click', () => fileInput.click());
+  if (btnMobileImport) btnMobileImport.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleAudioFile(e.target.files[0]);
+    }
+  });
+
+  // Drag & Drop
+  window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dropOverlay.classList.add('active');
+  });
+
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropOverlay.classList.add('active');
+  });
+
+  window.addEventListener('dragleave', (e) => {
+    if (e.relatedTarget === null) {
+      dropOverlay.classList.remove('active');
+    }
+  });
+
+  window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dropOverlay.classList.remove('active');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleAudioFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  async function handleAudioFile(file) {
+    if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|m4a|aac|flac|ogg)$/i)) {
+      showToast("⚠️ Please drop an audio file (.mp3, .wav, .m4a)");
+      return;
+    }
+
+    showToast("🎵 Importing audio to iPod...");
+    try {
+      const track = await audioEngine.importAudioFile(file);
+      screenRenderer.setTracks(audioEngine.tracks);
+      screenRenderer.setTrack(track, true);
+      screenRenderer.viewStack = ['root', 'nowPlaying'];
+      screenTexture.needsUpdate = true;
+
+      // Start playback
+      audioEngine.toggleMusic(true);
+      showToast(`🎵 Now Playing: ${track.title}`);
+
+      // Smooth zoom into screen
+      activeCamTarget = cameraTargets.front;
+    } catch (err) {
+      showToast("❌ Could not read audio file.");
+    }
+  }
+}
+
+// --- Direct 3D Raycasting Interaction on the 3D iPod Wheel ---
+function setupDirect3DInteraction() {
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let isRaycastDragging = false;
+  let lastTouchAngle = 0;
+  let accumulated3DAngle = 0;
+
+  function getRaycastHit(e) {
+    if (!ipodGroup) return null;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(ipodGroup.children, true);
+    return intersects.length ? intersects[0] : null;
+  }
+
+  // Detect clicks on the physical 3D earphone plug to plug/unplug!
+  window.addEventListener('click', (e) => {
+    // Avoid clicking when UI panel is open
+    if (e.target.closest('#customizer-panel') || e.target.closest('#settings-modal') || e.target.closest('.floating-island')) return;
+
+    const hit = getRaycastHit(e);
+    if (!hit) return;
+
+    const name = hit.object.name || (hit.object.parent ? hit.object.parent.name : '');
+
+    // Clicked Headphone jack port or earphones!
+    if (name.includes('jack') || name.includes('Port') || hit.object === headphoneJackPlug) {
+      togglePlugEarphones();
+      return;
+    }
+
+    // Clicked 3D Click Wheel center button
+    const p = hit.point;
+    // When facing front, center of click wheel is around (0, -0.42, 0.14)
+    if (Math.abs(p.x) < 0.12 && Math.abs(p.y - (-0.42)) < 0.12 && p.z > 0.05) {
+      const res = screenRenderer.selectCurrent();
+      audioEngine.playButtonPress();
+      if (res && res.action === 'playTrack') {
+        const track = audioEngine.selectTrackById(res.trackId);
+        screenRenderer.setTrack(track, true);
+      }
+      screenTexture.needsUpdate = true;
+    }
+  });
+
+  // Direct Wheel scroll via mouse wheel over the iPod
+  window.addEventListener('wheel', (e) => {
+    const hit = getRaycastHit(e);
+    if (hit) {
+      const delta = Math.sign(e.deltaY);
+      audioEngine.playClick();
+      screenRenderer.scroll(delta);
+      screenTexture.needsUpdate = true;
+    }
+  }, { passive: true });
+}
+
 // --- Welcome Screen Logic ---
 function setupWelcomeScreen() {
   const welcomeOverlay = document.getElementById('welcome-screen');
@@ -286,16 +609,11 @@ function setupWelcomeScreen() {
       audioEngine.playClick();
     }
 
-    // Hide welcome overlay
     welcomeOverlay.classList.add('hidden');
-
-    // Smooth transition camera to studio view
     activeCamTarget = cameraTargets.studio;
   });
 
-  welcomeSettingsBtn.addEventListener('click', () => {
-    openSettingsModal();
-  });
+  welcomeSettingsBtn.addEventListener('click', openSettingsModal);
 
   homeBtn.addEventListener('click', () => {
     welcomeOverlay.classList.remove('hidden');
@@ -327,11 +645,13 @@ function setupSettings() {
 
   clickerToggle.addEventListener('change', (e) => {
     settings.soundEnabled = e.target.checked;
+    audioEngine.soundEnabled = e.target.checked;
     updateSoundBtnState();
   });
 
   hapticsToggle.addEventListener('change', (e) => {
     settings.hapticsEnabled = e.target.checked;
+    audioEngine.hapticsEnabled = e.target.checked;
   });
 
   autorotateToggle.addEventListener('change', (e) => {
@@ -341,9 +661,8 @@ function setupSettings() {
 
   earphonesToggle.addEventListener('change', (e) => {
     settings.showEarphones = e.target.checked;
-    if (earphonesGroup) {
-      earphonesGroup.visible = settings.showEarphones;
-    }
+    if (earphonesGroup) earphonesGroup.visible = settings.showEarphones;
+    if (headphoneJackPlug) headphoneJackPlug.visible = settings.showEarphones;
   });
 
   themeSelect.addEventListener('change', (e) => {
@@ -370,7 +689,7 @@ function closeSettingsModal() {
 
 function updateSoundBtnState() {
   const soundIcon = document.getElementById('sound-icon');
-  soundIcon.textContent = settings.soundEnabled ? '🔊' : '🔇';
+  if (soundIcon) soundIcon.textContent = settings.soundEnabled ? '🔊' : '🔇';
 }
 
 // --- Interactive Circular Color Wheel ---
@@ -508,7 +827,7 @@ function applyColor(hex) {
   }
 }
 
-// --- UI Controls & Mobile Navigation ---
+// --- UI Controls & Navigation ---
 function setupUI() {
   // Target segment buttons
   const segmentBtns = document.querySelectorAll('.segment-btn');
@@ -517,7 +836,7 @@ function setupUI() {
       segmentBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentTarget = btn.dataset.target;
-      if (settings.soundEnabled) audioEngine.playButtonPress();
+      audioEngine.playButtonPress();
     });
   });
 
@@ -526,10 +845,9 @@ function setupUI() {
   presetChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       const col = chip.dataset.color;
-      if (settings.soundEnabled) audioEngine.playClick();
+      audioEngine.playClick();
 
       if (col === '#111111') {
-        // U2 Edition: Black body + Red wheel
         if (bodyMaterial) bodyMaterial.color.set('#111111');
         if (wheelMaterial) wheelMaterial.color.set('#cc0000');
         if (earphoneMaterial) earphoneMaterial.color.set('#1a1a1a');
@@ -540,6 +858,50 @@ function setupUI() {
     });
   });
 
+  // Plug Earphones Button (Floating island & mobile)
+  document.getElementById('btn-plug-earphones').addEventListener('click', togglePlugEarphones);
+  const mobilePlugBtn = document.getElementById('btn-mobile-plug');
+  if (mobilePlugBtn) mobilePlugBtn.addEventListener('click', togglePlugEarphones);
+
+  // Toggle Color Studio Panel
+  const customizerPanel = document.getElementById('customizer-panel');
+  const btnToggleColors = document.getElementById('btn-toggle-colors');
+  const btnCloseCustomizer = document.getElementById('btn-close-customizer');
+  const btnMobileColors = document.getElementById('btn-mobile-colors');
+
+  function toggleColorPanel() {
+    const isHidden = customizerPanel.classList.toggle('hidden');
+    customizerPanel.classList.toggle('mobile-active', !isHidden);
+    btnToggleColors.classList.toggle('active', !isHidden);
+    if (btnMobileColors) btnMobileColors.classList.toggle('active', !isHidden);
+    audioEngine.playButtonPress();
+  }
+
+  btnToggleColors.addEventListener('click', toggleColorPanel);
+  if (btnMobileColors) btnMobileColors.addEventListener('click', toggleColorPanel);
+  if (btnCloseCustomizer) btnCloseCustomizer.addEventListener('click', () => {
+    customizerPanel.classList.add('hidden');
+    customizerPanel.classList.remove('mobile-active');
+    btnToggleColors.classList.remove('active');
+    if (btnMobileColors) btnMobileColors.classList.remove('active');
+  });
+
+  // Toggle Virtual Click Wheel Controller
+  const clickwheelController = document.getElementById('clickwheel-controller');
+  const btnToggleWheel = document.getElementById('btn-toggle-wheel-overlay');
+  const btnMobileWheel = document.getElementById('btn-mobile-wheel');
+
+  function toggleWheel() {
+    const isHidden = clickwheelController.classList.toggle('hidden');
+    clickwheelController.classList.toggle('mobile-active', !isHidden);
+    btnToggleWheel.classList.toggle('active', !isHidden);
+    if (btnMobileWheel) btnMobileWheel.classList.toggle('active', !isHidden);
+    audioEngine.playButtonPress();
+  }
+
+  btnToggleWheel.addEventListener('click', toggleWheel);
+  if (btnMobileWheel) btnMobileWheel.addEventListener('click', toggleWheel);
+
   // Camera views (Desktop dock)
   const dockBtns = document.querySelectorAll('.dock-btn');
   dockBtns.forEach((btn) => {
@@ -549,92 +911,25 @@ function setupUI() {
       const viewKey = btn.dataset.view;
       if (cameraTargets[viewKey]) {
         activeCamTarget = cameraTargets[viewKey];
-        if (settings.soundEnabled) audioEngine.playButtonPress();
+        audioEngine.playButtonPress();
       }
     });
   });
 
-  // Reset View button
-  document.getElementById('btn-reset-view').addEventListener('click', () => {
-    activeCamTarget = cameraTargets.studio;
-    document.querySelectorAll('.dock-btn').forEach((b) => b.classList.remove('active'));
-    const studioBtn = document.querySelector('.dock-btn[data-view="studio"]');
-    if (studioBtn) studioBtn.classList.add('active');
-    if (settings.soundEnabled) audioEngine.playButtonPress();
-  });
-
   // Sound Toggle on Navbar
-  const soundBtn = document.getElementById('btn-toggle-sound');
-  soundBtn.addEventListener('click', () => {
+  document.getElementById('btn-toggle-sound').addEventListener('click', () => {
     settings.soundEnabled = !settings.soundEnabled;
+    audioEngine.soundEnabled = settings.soundEnabled;
     updateSoundBtnState();
     document.getElementById('setting-clicker').checked = settings.soundEnabled;
   });
 
-  // Mobile Action Bar buttons
-  const customizerPanel = document.getElementById('customizer-panel');
-  const clickwheelController = document.getElementById('clickwheel-controller');
-  const btnMobileColors = document.getElementById('btn-mobile-colors');
-  const btnMobileWheel = document.getElementById('btn-mobile-wheel');
-  const btnMobileViews = document.getElementById('btn-mobile-views');
-  const btnMobilePlay = document.getElementById('btn-mobile-play');
-  const btnCloseCustomizer = document.getElementById('btn-close-customizer');
-
-  if (btnMobileColors) {
-    btnMobileColors.addEventListener('click', () => {
-      const isActive = customizerPanel.classList.toggle('mobile-active');
-      btnMobileColors.classList.toggle('active', isActive);
-      if (isActive) {
-        clickwheelController.classList.remove('mobile-active');
-        btnMobileWheel.classList.remove('active');
-      }
-      if (settings.soundEnabled) audioEngine.playButtonPress();
-    });
-  }
-
-  if (btnCloseCustomizer) {
-    btnCloseCustomizer.addEventListener('click', () => {
-      customizerPanel.classList.remove('mobile-active');
-      btnMobileColors.classList.remove('active');
-    });
-  }
-
-  if (btnMobileWheel) {
-    btnMobileWheel.addEventListener('click', () => {
-      const isActive = clickwheelController.classList.toggle('mobile-active');
-      btnMobileWheel.classList.toggle('active', isActive);
-      if (isActive) {
-        customizerPanel.classList.remove('mobile-active');
-        btnMobileColors.classList.remove('active');
-      }
-      if (settings.soundEnabled) audioEngine.playButtonPress();
-    });
-  }
-
-  if (btnMobileViews) {
-    btnMobileViews.addEventListener('click', () => {
-      currentViewIndex = (currentViewIndex + 1) % viewKeys.length;
-      const key = viewKeys[currentViewIndex];
-      activeCamTarget = cameraTargets[key];
-      if (settings.soundEnabled) audioEngine.playButtonPress();
-    });
-  }
-
-  if (btnMobilePlay) {
-    btnMobilePlay.addEventListener('click', () => {
-      const isPlaying = audioEngine.toggleMusic();
-      screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-      screenTexture.needsUpdate = true;
-      document.getElementById('mobile-play-icon').textContent = isPlaying ? '⏸️' : '▶️';
-    });
-  }
-
   // Virtual Click Wheel Logic
-  setupClickWheelInteraction();
+  setupVirtualClickWheel();
 }
 
-// --- Virtual Click Wheel Interaction ---
-function setupClickWheelInteraction() {
+// --- Virtual Click Wheel Controller Logic ---
+function setupVirtualClickWheel() {
   const wheel = document.getElementById('virtual-wheel');
   let isWheelDragging = false;
   let lastAngle = 0;
@@ -657,11 +952,11 @@ function setupClickWheelInteraction() {
     accumulatedAngle += delta;
     lastAngle = currentAngle;
 
-    const notch = Math.PI / 12;
+    const notch = Math.PI / 12; // ~15 deg
     if (Math.abs(accumulatedAngle) >= notch) {
       const step = Math.sign(accumulatedAngle);
       accumulatedAngle = 0;
-      if (settings.soundEnabled) audioEngine.playClick();
+      audioEngine.playClick();
       screenRenderer.scroll(step);
       screenTexture.needsUpdate = true;
     }
@@ -695,24 +990,34 @@ function setupClickWheelInteraction() {
 
   // Buttons: MENU, Center Select, Play/Pause, Next, Prev
   document.getElementById('ctrl-menu').addEventListener('click', () => {
-    if (settings.soundEnabled) audioEngine.playButtonPress();
+    audioEngine.playButtonPress();
     screenRenderer.goBack();
     screenTexture.needsUpdate = true;
   });
 
   document.getElementById('ctrl-center').addEventListener('click', () => {
-    if (settings.soundEnabled) audioEngine.playButtonPress();
-    screenRenderer.selectCurrent();
+    audioEngine.playButtonPress();
+    const res = screenRenderer.selectCurrent();
+    if (res && res.action === 'playTrack') {
+      const track = audioEngine.selectTrackById(res.trackId);
+      screenRenderer.setTrack(track, true);
+    }
     screenTexture.needsUpdate = true;
   });
 
-  document.getElementById('ctrl-play').addEventListener('click', () => {
+  const btnPlay = document.getElementById('ctrl-play');
+  const btnMobilePlay = document.getElementById('btn-mobile-play');
+
+  function handlePlayToggle() {
     const isPlaying = audioEngine.toggleMusic();
     screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
     screenTexture.needsUpdate = true;
     const mobileIcon = document.getElementById('mobile-play-icon');
     if (mobileIcon) mobileIcon.textContent = isPlaying ? '⏸️' : '▶️';
-  });
+  }
+
+  btnPlay.addEventListener('click', handlePlayToggle);
+  if (btnMobilePlay) btnMobilePlay.addEventListener('click', handlePlayToggle);
 
   document.getElementById('ctrl-next').addEventListener('click', () => {
     const track = audioEngine.nextTrack();
@@ -737,16 +1042,20 @@ function animate() {
     controls.target.lerp(activeCamTarget.target, 0.05);
   }
 
-  // Update Controls
+  // Update OrbitControls
   controls.update();
 
-  // Subtle floating motion
+  // Subtle breathing float for the iPod
   if (ipodGroup) {
     const t = Date.now() * 0.001;
     ipodGroup.position.y = Math.sin(t * 1.2) * 0.02;
+    // Follow iPod position when plugged
+    if (isEarphonesPlugged && !isPlugAnimating) {
+      headphoneJackPlug.position.y = PLUG_POS_PLUGGED.y + ipodGroup.position.y;
+    }
   }
 
-  // Screen update
+  // Update Dynamic Screen Canvas
   if (screenRenderer.render()) {
     screenTexture.needsUpdate = true;
   }
