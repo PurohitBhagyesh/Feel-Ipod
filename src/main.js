@@ -249,6 +249,19 @@ function init() {
     updateTopNavTrackBadge(track, isPlaying);
   });
 
+  // Load persisted tracks from local IndexedDB
+  audioEngine.loadPersistedTracks().then((tracks) => {
+    if (tracks && tracks.length > 0) {
+      screenRenderer.setTracks(tracks);
+      screenRenderer.setTrack(tracks[0], false);
+      if (screenTexture) screenTexture.needsUpdate = true;
+    } else {
+      screenRenderer.setTracks([]);
+      screenRenderer.setTrack(null, false);
+      if (screenTexture) screenTexture.needsUpdate = true;
+    }
+  });
+
   // Responsive Resizing
   window.addEventListener('resize', onWindowResize);
 
@@ -379,29 +392,29 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Authentic Apple Wired Earphone 3.5mm Plug (Precision Real-Life Finish) ---
+// --- Authentic Apple Wired Earphone 3.5mm Plug (Pure White + Light Grey Finish) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Precision-turned mirror-finish stainless steel / nickel conductors
+  // Clean luminous light grey silver chrome conductors
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xf4f6fb,
-    metalness: 0.98,
-    roughness: 0.05
+    color: 0xe2e6ee,
+    metalness: 0.82,
+    roughness: 0.16
   });
 
-  // Authentic Apple Wired EarPods White Delrin Insulator Bands (Flush & Thin)
+  // Authentic Apple Wired EarPods Crisp Pure White Delrin Insulator Bands
   const whiteInsulatorMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.22,
+    roughness: 0.14,
     metalness: 0.0
   });
 
-  // Precision machined detent latching groove
+  // Soft light grey detent latching neck groove
   const waistMat = new THREE.MeshStandardMaterial({
-    color: 0xcfd4de,
-    metalness: 0.94,
-    roughness: 0.09
+    color: 0xd4d8e2,
+    metalness: 0.78,
+    roughness: 0.20
   });
 
   const R = 0.029; // Uniform outer conductor radius (flush continuous cylinder)
@@ -1014,6 +1027,10 @@ function setupDirectClickWheel() {
             const track = audioEngine.selectTrackById(res.trackId);
             screenRenderer.setTrack(track, true);
           } else if (res.action === 'togglePlay') {
+            if (audioEngine.tracks.length === 0) {
+              showToast("Library is empty. Import songs to play.");
+              return;
+            }
             if (!isPluggedIn) {
               toggleHeadphonePlug();
             } else {
@@ -1021,6 +1038,10 @@ function setupDirectClickWheel() {
               screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
             }
           } else if (res.action === 'shuffle') {
+            if (audioEngine.tracks.length === 0) {
+              showToast("Library is empty. Import songs to play.");
+              return;
+            }
             audioEngine.playDriveSpinUp();
             if (!isPluggedIn) {
               toggleHeadphonePlug();
@@ -1048,6 +1069,10 @@ function setupDirectClickWheel() {
         } else if (angleDeg <= -45 && angleDeg >= -135) {
           // BOTTOM: PLAY / PAUSE
           flashWheelButton('play');
+          if (audioEngine.tracks.length === 0) {
+            showToast("Library is empty. Import songs to play.");
+            return;
+          }
           if (!isPluggedIn) {
             toggleHeadphonePlug();
           } else {
@@ -1354,6 +1379,10 @@ function setupVirtualWheelHUD() {
 
   vBtnPlay.addEventListener('click', () => {
     flashWheelButton('play');
+    if (audioEngine.tracks.length === 0) {
+      showToast("Library is empty. Import songs to play.");
+      return;
+    }
     if (!isPluggedIn) {
       toggleHeadphonePlug();
     } else {
@@ -1510,24 +1539,33 @@ function handleAudioFilesImport(files) {
 
   showToast(`Importing ${validFiles.length} song${validFiles.length > 1 ? 's' : ''}...`);
 
-  audioEngine.importAudioFiles(validFiles).then((importedTracks) => {
+  audioEngine.importAudioFiles(validFiles).then(({ imported, duplicates }) => {
     screenRenderer.setTracks(audioEngine.tracks);
-    const firstTrack = importedTracks[0];
 
-    // Connect earphones if disconnected so sound starts
-    if (!isPluggedIn) {
-      toggleHeadphonePlug();
+    if (imported.length > 0) {
+      const firstTrack = imported[0];
+
+      // Connect earphones if disconnected so sound starts
+      if (!isPluggedIn) {
+        toggleHeadphonePlug();
+      }
+
+      // Play immediately
+      audioEngine.selectTrackById(firstTrack.id);
+      const isPlaying = audioEngine.toggleMusic(true);
+
+      screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
+      screenRenderer.setTrack(firstTrack, isPlaying);
+      if (screenTexture) screenTexture.needsUpdate = true;
+
+      if (duplicates > 0) {
+        showToast(`Added ${imported.length} new song(s) (${duplicates} duplicate skipped)`);
+      } else {
+        showToast(`Playing: ${firstTrack.title}`);
+      }
+    } else if (duplicates > 0) {
+      showToast("Song already in library — duplicates skipped");
     }
-
-    // Play immediately
-    audioEngine.selectTrackById(firstTrack.id);
-    const isPlaying = audioEngine.toggleMusic(true);
-
-    screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
-    screenRenderer.setTrack(firstTrack, isPlaying);
-    if (screenTexture) screenTexture.needsUpdate = true;
-
-    showToast(`Playing: ${firstTrack.title}`);
   }).catch((err) => {
     console.error(err);
     showToast("Could not import audio files");

@@ -1,4 +1,5 @@
-// Web Audio API Sound Generator & Real MP3 Playback Engine for MP3 Player Simulator 3D
+// Web Audio API Sound Generator & Real MP3 Playback Engine for FeelPod 3D
+import { saveTrack, getAllStoredTracks, isTrackStored, getFileUniqueKey } from './db.js';
 
 class iPodAudioEngine {
   constructor() {
@@ -20,46 +21,9 @@ class iPodAudioEngine {
     this.audioElement.muted = true; // Muted by default until earphones are plugged in!
     this.mediaSourceNode = null;
 
-    // Playlist
-    this.currentTrackIndex = 0;
-    this.tracks = [
-      {
-        id: 'track-1',
-        title: "Retro Groove",
-        artist: "Antigravity Sound",
-        duration: "3:24",
-        durationSec: 204,
-        album: "Nostalgia Vibes",
-        isCustom: false
-      },
-      {
-        id: 'track-2',
-        title: "Midnight Lo-Fi",
-        artist: "Antigravity Sound",
-        duration: "2:48",
-        durationSec: 168,
-        album: "Chill Session",
-        isCustom: false
-      },
-      {
-        id: 'track-3',
-        title: "Digital Horizon",
-        artist: "Antigravity Sound",
-        duration: "3:55",
-        durationSec: 235,
-        album: "Classic Memories",
-        isCustom: false
-      },
-      {
-        id: 'track-4',
-        title: "Summer Sunshine",
-        artist: "Antigravity Sound",
-        duration: "3:10",
-        durationSec: 190,
-        album: "Analog Days",
-        isCustom: false
-      }
-    ];
+    // Playlist: Stored locally in IndexedDB (No dummy default songs!)
+    this.currentTrackIndex = -1;
+    this.tracks = [];
 
     this.progress = 0;
     this.musicInterval = null;
@@ -371,18 +335,82 @@ class iPodAudioEngine {
     }
   }
 
-  // --- Multiple & Single Audio File Import ---
+  // --- Local Database Persistence: Load Tracks from IndexedDB ---
+  async loadPersistedTracks() {
+    try {
+      const records = await getAllStoredTracks();
+      if (!records || records.length === 0) {
+        this.tracks = [];
+        this.currentTrackIndex = -1;
+        return [];
+      }
+
+      const loadedList = [];
+      for (const rec of records) {
+        const audioUrl = URL.createObjectURL(rec.blob);
+        let coverUrl = null;
+        let coverImage = null;
+
+        if (rec.coverBlob) {
+          coverUrl = URL.createObjectURL(rec.coverBlob);
+          const img = new Image();
+          img.src = coverUrl;
+          coverImage = img;
+        }
+
+        const track = {
+          id: rec.id,
+          uniqueKey: rec.uniqueKey,
+          title: rec.title,
+          artist: rec.artist,
+          album: rec.album,
+          duration: rec.duration,
+          durationSec: rec.durationSec,
+          url: audioUrl,
+          coverUrl: coverUrl,
+          coverImage: coverImage,
+          isCustom: true
+        };
+        loadedList.push(track);
+      }
+
+      this.tracks = loadedList;
+      if (this.tracks.length > 0) {
+        this.currentTrackIndex = 0;
+        this.loadTrack(this.tracks[0]);
+      }
+      return this.tracks;
+    } catch (err) {
+      console.warn('Error loading persisted tracks:', err);
+      return [];
+    }
+  }
+
+  // --- Multiple & Single Audio File Import with Deduplication & Local DB Storage ---
   async importAudioFiles(files) {
     this.init();
     const importedList = [];
+    let duplicateCount = 0;
 
     for (const file of files) {
+      const uniqueKey = getFileUniqueKey(file);
+
+      // Deduplication: Check both memory and local IndexedDB so the song is not added again!
+      const alreadyInMemory = this.tracks.some(t => t.uniqueKey === uniqueKey);
+      const alreadyInDB = await isTrackStored(uniqueKey);
+
+      if (alreadyInMemory || alreadyInDB) {
+        duplicateCount++;
+        continue;
+      }
+
       const url = URL.createObjectURL(file);
       let title = file.name.replace(/\.[^/.]+$/, "");
       let artist = "Imported Audio";
-      let album = "My Imported MP3s";
+      let album = "My Library";
       let coverUrl = null;
       let coverImage = null;
+      let coverBlob = null;
 
       // Parse ID3v2 metadata & APIC album cover
       try {
@@ -391,7 +419,8 @@ class iPodAudioEngine {
         if (id3Data.title) title = id3Data.title;
         if (id3Data.artist) artist = id3Data.artist;
         if (id3Data.album) album = id3Data.album;
-        if (id3Data.coverUrl) {
+        if (id3Data.coverBlob) {
+          coverBlob = id3Data.coverBlob;
           coverUrl = id3Data.coverUrl;
           const img = new Image();
           img.src = coverUrl;
@@ -418,8 +447,29 @@ class iPodAudioEngine {
       const mins = Math.floor(totalSec / 60);
       const secs = ('0' + (totalSec % 60)).slice(-2);
 
+      const trackId = `track-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const trackRecord = {
+        id: trackId,
+        uniqueKey: uniqueKey,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        title: title,
+        artist: artist,
+        album: album,
+        duration: `${mins}:${secs}`,
+        durationSec: totalSec,
+        blob: file,
+        coverBlob: coverBlob,
+        dateAdded: Date.now()
+      };
+
+      // Store in local IndexedDB so it persists across refreshes and restarts!
+      await saveTrack(trackRecord);
+
       const track = {
-        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        id: trackId,
+        uniqueKey: uniqueKey,
         title: title,
         artist: artist,
         album: album,
@@ -442,12 +492,13 @@ class iPodAudioEngine {
       this.loadTrack(importedList[0]);
     }
 
-    return importedList;
+    return { imported: importedList, duplicates: duplicateCount };
   }
 
   // --- Interactive Seeking / Sliding ---
   seekTo(seconds) {
     const cur = this.getCurrentTrack();
+    if (!cur) return;
     const duration = (cur.isCustom && this.audioElement.duration) ? this.audioElement.duration : (cur.durationSec || 200);
     const clampedTime = Math.max(0, Math.min(duration, seconds));
 
@@ -467,13 +518,15 @@ class iPodAudioEngine {
 
   seekToProgress(fraction) {
     const cur = this.getCurrentTrack();
+    if (!cur) return;
     const duration = (cur.isCustom && this.audioElement.duration) ? this.audioElement.duration : (cur.durationSec || 200);
     this.seekTo(fraction * duration);
   }
 
   // Alias for single file import
   async importAudioFile(file) {
-    return (await this.importAudioFiles([file]))[0];
+    const res = await this.importAudioFiles([file]);
+    return (res.imported && res.imported[0]) || null;
   }
 
   importLocalFile(file) {
@@ -482,6 +535,7 @@ class iPodAudioEngine {
 
   // --- Track Playback ---
   loadTrack(track) {
+    if (!track) return;
     if (track.isCustom && track.url) {
       this.stopSynthPlayback();
       this.audioElement.src = track.url;
@@ -503,6 +557,11 @@ class iPodAudioEngine {
     this.init();
     this.playButtonPress();
 
+    if (this.tracks.length === 0) {
+      this.isPlaying = false;
+      return false;
+    }
+
     if (forceState !== null) {
       this.isPlaying = forceState;
     } else {
@@ -510,6 +569,10 @@ class iPodAudioEngine {
     }
 
     const currentTrack = this.getCurrentTrack();
+    if (!currentTrack) {
+      this.isPlaying = false;
+      return false;
+    }
 
     if (this.isPlaying) {
       this.playDriveSpinUp();
@@ -532,17 +595,19 @@ class iPodAudioEngine {
 
   nextTrack() {
     this.playButtonPress();
+    if (this.tracks.length === 0) return null;
     this.currentTrackIndex = (this.currentTrackIndex + 1) % this.tracks.length;
     this.progress = 0;
     const track = this.getCurrentTrack();
-    this.loadTrack(track);
-
-    if (this.isPlaying) {
-      this.playDriveSpinUp();
-      if (track.isCustom && track.url) {
-        this.audioElement.play().catch(() => {});
-      } else {
-        this.startSynthPlayback();
+    if (track) {
+      this.loadTrack(track);
+      if (this.isPlaying) {
+        this.playDriveSpinUp();
+        if (track.isCustom && track.url) {
+          this.audioElement.play().catch(() => {});
+        } else {
+          this.startSynthPlayback();
+        }
       }
     }
     return track;
@@ -550,28 +615,31 @@ class iPodAudioEngine {
 
   prevTrack() {
     this.playButtonPress();
+    if (this.tracks.length === 0) return null;
     this.currentTrackIndex = (this.currentTrackIndex - 1 + this.tracks.length) % this.tracks.length;
     this.progress = 0;
     const track = this.getCurrentTrack();
-    this.loadTrack(track);
-
-    if (this.isPlaying) {
-      this.playDriveSpinUp();
-      if (track.isCustom && track.url) {
-        this.audioElement.play().catch(() => {});
-      } else {
-        this.startSynthPlayback();
+    if (track) {
+      this.loadTrack(track);
+      if (this.isPlaying) {
+        this.playDriveSpinUp();
+        if (track.isCustom && track.url) {
+          this.audioElement.play().catch(() => {});
+        } else {
+          this.startSynthPlayback();
+        }
       }
     }
     return track;
   }
 
   selectTrackById(id) {
+    if (this.tracks.length === 0) return null;
     const idx = this.tracks.findIndex(t => t.id === id);
     if (idx !== -1) {
       this.currentTrackIndex = idx;
       this.progress = 0;
-      const track = this.getCurrentTrack();
+      const track = this.tracks[idx];
       this.loadTrack(track);
       if (this.isPlaying) {
         this.toggleMusic(true);
@@ -582,7 +650,8 @@ class iPodAudioEngine {
   }
 
   getCurrentTrack() {
-    return this.tracks[this.currentTrackIndex] || this.tracks[0];
+    if (this.tracks.length === 0) return null;
+    return this.tracks[this.currentTrackIndex] || this.tracks[0] || null;
   }
 
   setVolume(vol) {
@@ -719,6 +788,7 @@ function parseID3v2(arrayBuffer) {
           const imgBytes = frameBytes.subarray(descEnd);
           if (imgBytes.length > 32) {
             const blob = new Blob([imgBytes], { type: mime });
+            metadata.coverBlob = blob;
             metadata.coverUrl = URL.createObjectURL(blob);
           }
         } catch (e) {

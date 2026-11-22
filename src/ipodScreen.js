@@ -83,6 +83,11 @@ export class iPodScreenRenderer {
         { id: 'repeat', label: 'Repeat: All', hasSub: false }
       ];
     } else if (view === 'songs') {
+      if (this.tracks.length === 0) {
+        return [
+          { id: 'import', label: 'Import Songs...', hasSub: false }
+        ];
+      }
       return this.tracks.map((t, idx) => ({
         id: `song-${idx}`,
         trackId: t.id,
@@ -429,6 +434,22 @@ export class iPodScreenRenderer {
   }
 
   drawNowPlaying(ctx, w, h, freqData) {
+    if (!this.currentTrack) {
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText('No Music', w / 2, 130);
+
+      ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('Select Import MP3 to add songs', w / 2, 165);
+
+      ctx.font = 'italic 13px -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Stored locally in your browser', w / 2, 205);
+      return;
+    }
+
     const artSize = 138;
     const artX = 24;
     const artY = 62;

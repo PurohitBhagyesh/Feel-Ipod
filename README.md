@@ -15,12 +15,18 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Camera distance and vertical centering automatically adapt to any screen size (desktop, widescreen, tablet, and mobile portrait).
   - Preserves breathing room (40px–80px clearance) above the bottom dock and top view so the device, click wheel, and headphone cable are always in view.
 
-- **Real-Life 3.5mm Earphone Plug Tip**
+- **Local Database Persistence & Deduplication (IndexedDB)**
+  - Stores imported audio files (`Blob`), ID3 metadata, and extracted cover art permanently in browser local IndexedDB (`FeelPodMusicDB`).
+  - Songs persist across browser restarts, page refreshes, and tabs without re-uploading.
+  - Automatic deduplication check prevents the same song from being added multiple times.
+  - Clean initial state: dummy default songs removed; starts fresh with authentic "No Music" empty state.
+
+- **Real-Life 3.5mm Earphone Plug Tip (Pure White + Light Grey)**
   - 1:1 physical model based on genuine Apple EarPods:
-    - Mirror-polished nickel/chrome conductor segments (Tip, Ring 1, Ring 2, Sleeve) with high specular reflectivity.
+    - Luminous light grey silver conductors (Tip, Ring 1, Ring 2, Sleeve) with satin metallic sheen.
     - Pure white Delrin insulator rings flush with the metal cylinder.
-    - Machined detent latching groove and smooth bullet/chamfered dome nose.
-    - White polycarbonate cylindrical barrel with seamless silicone strain relief.
+    - Machined light grey detent latching groove and smooth bullet/chamfered dome nose.
+    - Pure white polycarbonate cylindrical barrel with seamless silicone strain relief and white cable.
   - Automatically animates into the top jack when headphones are plugged in or detected.
 
 - **Transparent Apple Liquid Glass Settings & Dock**
