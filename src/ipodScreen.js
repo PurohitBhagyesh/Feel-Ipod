@@ -385,12 +385,20 @@ export class iPodScreenRenderer {
     const itemHeight = 48;
     const startY = 48;
     const selectedIdx = this.selectedIndices[view] || 0;
+    const maxVisible = Math.floor((h - startY) / itemHeight); // 7 visible items per page
 
-    items.forEach((item, index) => {
+    // Dynamic scroll window so selectedIdx is always visible and moves smoothly
+    let scrollOffset = 0;
+    if (selectedIdx >= maxVisible) {
+      scrollOffset = selectedIdx - maxVisible + 1;
+    }
+
+    const visibleItems = items.slice(scrollOffset, scrollOffset + maxVisible);
+
+    visibleItems.forEach((item, index) => {
+      const actualIndex = scrollOffset + index;
       const y = startY + index * itemHeight;
-      if (y + itemHeight > h) return;
-
-      const isSelected = index === selectedIdx;
+      const isSelected = actualIndex === selectedIdx;
 
       if (isSelected) {
         // Classic muted slate/indigo-blue selection bar
@@ -402,7 +410,17 @@ export class iPodScreenRenderer {
       ctx.textAlign = 'left';
       ctx.font = this.getFont('bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = isSelected ? '#ffffff' : '#000000';
-      ctx.fillText(item.label, 20, y + 33);
+
+      // Trim label if it exceeds screen width so it fits gracefully
+      const maxTextW = w - (item.hasSub || item.id === 'import' ? 64 : 44);
+      let label = item.label;
+      if (ctx.measureText(label).width > maxTextW) {
+        while (label.length > 3 && ctx.measureText(label + '...').width > maxTextW) {
+          label = label.slice(0, -1);
+        }
+        label += '...';
+      }
+      ctx.fillText(label, 20, y + 33);
 
       // Chevron arrow (›) on right
       if (item.hasSub) {
@@ -418,6 +436,19 @@ export class iPodScreenRenderer {
         ctx.fillText('+', w - 20, y + 33);
       }
     });
+
+    // Draw subtle vertical scroll indicator bar on right if items exceed view
+    if (items.length > maxVisible) {
+      const trackH = h - startY;
+      const barH = Math.max(16, (maxVisible / items.length) * trackH);
+      const barY = startY + (scrollOffset / (items.length - maxVisible)) * (trackH - barH);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.10)';
+      ctx.fillRect(w - 5, startY, 4, trackH);
+
+      ctx.fillStyle = '#6f82a5';
+      ctx.fillRect(w - 5, barY, 4, barH);
+    }
   }
 
   drawAbout(ctx, w, h) {

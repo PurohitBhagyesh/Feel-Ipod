@@ -58,13 +58,23 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Custom wallpaper images and background videos are stored as raw Blobs in IndexedDB, completely bypassing `localStorage` 5MB quota restrictions and temporary blob URL expirations—persisting reliably across device restarts, reloads, and browser sessions.
   - Automatic deduplication check prevents the same song from being added multiple times.
 
-- **Direct Touch-to-Plug 3D Earphone Animation**
+- **Direct Touch-to-Plug 3D Earphone Animation & Protected Unplugging**
   - Tapping or clicking directly on the 3.5mm headphone plug or top jack opening triggers a smooth cubic-bezier insertion animation with realistic mechanical latching and immediate audio playback.
-  - Features dual tactile hit-box proxy meshes (`plugHitProxy` and `socketHitProxy`) ensuring 100% reliable finger tap registration on mobile screens.
+  - Dedicated tactile hit-box proxy meshes (`plugHitProxy` and `socketHitProxy`) ensure 100% reliable finger tap registration.
+  - **Explicit-Only Headphone Removal**: Accidental screen or body touches never disconnect the earphones. Unplugging only occurs when explicitly clicking the 3.5mm plug or the dock "Plug In / Unplug" toggle.
 
-- **Transparent Animated Liquid Glass "Wear Headphones" Modal**
-  - Redesigned with Apple-grade frosted liquid glass (`backdrop-filter: blur(40px) saturate(200%)`).
-  - Features a floating headphone emblem with 3 concentric radiating audio ripple waves (`@keyframes ripple-radiate`) expanding outward.
+- **Dynamic Infinite List Scrolling with Vertical Scrollbar**
+  - Scrolling the Click Wheel over the Music, Songs, or Settings menu dynamically scrolls lists of any length item-by-item.
+  - Features an integrated iOS-style vertical scrollbar track and thumb indicating position in large music libraries.
+  - Text labels that exceed the LCD display width automatically truncate gracefully with an ellipsis (`...`).
+
+- **Immediate Auto-Navigation to Now Playing**
+  - Whenever a song starts playing—whether from selecting a track, pressing the play button, shuffling, or connecting earphones—the LCD display automatically and instantly switches to the "Now Playing" view.
+
+- **Floating Breathing Liquid Glass "Wear Headphones" Modal**
+  - Redesigned with Apple-grade frosted liquid glass (`backdrop-filter: blur(48px) saturate(220%)`).
+  - Features smooth floating and breathing levitation animation (`@keyframes immersive-card-float`) alongside 3 concentric radiating audio ripple waves (`@keyframes ripple-radiate`).
+  - Dual-mode adaptation: high-contrast solid black typography on studio white, and luminous white frosted glass on custom wallpapers.
 
 - **Mathematically Aligned Mobile Virtual Click Wheel**
   - Floating HUD (`160px × 160px` desktop, `124px × 124px` mobile) with exact quadrant positioning (`top/bottom: 50%`, `transform: translate(-50%, -50%)`).

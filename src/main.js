@@ -368,32 +368,36 @@ function createDedicatedScreen() {
 // --- Dynamic Camera Framing (Full-Size Mobile iPod with Clean Spacing Above Bottom Dock) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
-  let z, y;
+  let z, y, targetY;
 
   if (aspect < 0.65) {
     // Tall portrait smartphones (iPhone 12/13/14/15/Pro, Pixel, Galaxy):
     // iPod scaled to full size (prominent, tactile, sharp) with z between 3.08 and 3.40,
-    // and elevated with y = 0.05 to leave generous ~90-110px clearance above bottom dock
+    // and elevated so the bottom click wheel has clean breathing room above the dock
     z = Math.min(3.40, Math.max(3.08, 1.48 / aspect));
-    y = 0.05;
+    y = 0.06;
+    targetY = -0.04;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
     z = Math.min(4.10, Math.max(3.60, 1.85 / aspect));
     y = 0.02;
+    targetY = 0.0;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
     z = 4.55;
     y = -0.04;
+    targetY = -0.04;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
     // Generous ~110px-130px clearance between bottom of pod and bottom dock
     z = 4.65;
     y = -0.04;
+    targetY = -0.04;
   }
 
   camera.position.set(0, y, z);
   if (controls) {
-    controls.target.set(0, y, 0);
+    controls.target.set(0, targetY !== undefined ? targetY : y, 0);
     controls.update();
   }
 }
@@ -971,18 +975,6 @@ function setupPlugInteraction() {
         return;
       }
     }
-
-    // 3. Hit against the top opening area of the MP3 player (y > 0.55 in world coordinates)
-    if (ipodGroup) {
-      const ipodHits = raycaster.intersectObjects(ipodGroup.children, true);
-      if (ipodHits.length > 0) {
-        const hit = ipodHits[0];
-        if (hit.point.y > 0.55 && Math.abs(hit.point.x) < 0.40) {
-          audioEngine.init();
-          toggleHeadphonePlug();
-        }
-      }
-    }
   });
 }
 
@@ -995,14 +987,21 @@ function setupDirectClickWheel() {
   let isSongScrubbing = false;
   let lastWheelAngle = 0;
   let accumulatedAngle = 0;
+  let wheelScreenCenterX = 0;
+  let wheelScreenCenterY = 0;
   let dragStartPoint = new THREE.Vector2();
   let hasDragged = false;
 
+  function getClientPos(e) {
+    const x = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const y = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    return { x, y };
+  }
+
   function getRaycastHit(e) {
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    mouse.x = (clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+    const pos = getClientPos(e);
+    mouse.x = (pos.x / window.innerWidth) * 2 - 1;
+    mouse.y = -(pos.y / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
     const targets = [];
@@ -1012,10 +1011,6 @@ function setupDirectClickWheel() {
 
     const intersects = raycaster.intersectObjects(targets, true);
     return intersects.length ? intersects[0] : null;
-  }
-
-  function getAngleOnWheel(p) {
-    return Math.atan2(p.y - WHEEL_CENTER_Y, p.x);
   }
 
   function tryScrubSong(hit) {
@@ -1035,7 +1030,7 @@ function setupDirectClickWheel() {
 
   // Pointer Down
   window.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('#bottom-dock') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+    if (e.target.closest('#bottom-dock') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud') || e.target.closest('#immersive-modal') || e.target.closest('.dock-expand-tab')) {
       return;
     }
 
@@ -1059,13 +1054,21 @@ function setupDirectClickWheel() {
     if (dist <= 0.42 && p.z > 0.05) {
       isWheelDragging = true;
       hasDragged = false;
-      dragStartPoint.set(e.clientX, e.clientY);
-      lastWheelAngle = getAngleOnWheel(p);
+      const pos = getClientPos(e);
+      dragStartPoint.set(pos.x, pos.y);
+
+      // Project 3D wheel center into 2D client coordinates for 360-degree smooth rotary tracking
+      const wheelWorld = new THREE.Vector3(0, WHEEL_CENTER_Y, FRONT_FACE_Z);
+      const p2d = wheelWorld.clone().project(camera);
+      wheelScreenCenterX = (p2d.x + 1) * window.innerWidth / 2;
+      wheelScreenCenterY = (-p2d.y + 1) * window.innerHeight / 2;
+
+      lastWheelAngle = Math.atan2(pos.y - wheelScreenCenterY, pos.x - wheelScreenCenterX);
       accumulatedAngle = 0;
     }
   });
 
-  // Pointer Move (Scrubbing / Rotary Dragging)
+  // Pointer Move (Rotary Dragging & Song Scrubbing)
   window.addEventListener('pointermove', (e) => {
     // Song scrubber drag
     if (isSongScrubbing) {
@@ -1081,17 +1084,14 @@ function setupDirectClickWheel() {
 
     if (!isWheelDragging) return;
 
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const movedDist = Math.hypot(clientX - dragStartPoint.x, clientY - dragStartPoint.y);
+    const pos = getClientPos(e);
+    const movedDist = Math.hypot(pos.x - dragStartPoint.x, pos.y - dragStartPoint.y);
     if (movedDist > 6) {
       hasDragged = true;
     }
 
-    const hit = getRaycastHit(e);
-    if (!hit) return;
-
-    const currentAngle = getAngleOnWheel(hit.point);
+    // High-precision 2D circular angle calculation relative to projected wheel center
+    const currentAngle = Math.atan2(pos.y - wheelScreenCenterY, pos.x - wheelScreenCenterX);
     let delta = currentAngle - lastWheelAngle;
 
     // Handle wrapping around [-PI, PI]
@@ -1104,14 +1104,17 @@ function setupDirectClickWheel() {
     // Sensitivity adjusted notch threshold
     const notch = (Math.PI / 13) / (simulatorSettings.sensitivity || 1.0);
     if (Math.abs(accumulatedAngle) >= notch) {
-      const step = delta < 0 ? 1 : -1;
+      // In screen coordinates (Y down):
+      // Clockwise rotation INCREASES angle -> accumulatedAngle > 0 -> step = +1 (SCROLL DOWN)
+      // Counter-clockwise rotation DECREASES angle -> accumulatedAngle < 0 -> step = -1 (SCROLL UP)
+      const step = accumulatedAngle > 0 ? 1 : -1;
       accumulatedAngle = 0;
 
       audioEngine.playWheelClick();
 
-      // In Now Playing view: wheel controls volume
+      // In Now Playing view: wheel controls volume (clockwise = louder)
       if (screenRenderer.getCurrentView() === 'nowPlaying') {
-        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? 0.05 : -0.05));
         screenRenderer.showVolumeHUD(newVol);
       } else {
         screenRenderer.scroll(step);
@@ -1155,6 +1158,9 @@ function setupDirectClickWheel() {
             document.getElementById('settings-modal').classList.remove('hidden');
           } else if (res.action === 'playTrack') {
             const track = audioEngine.selectTrackById(res.trackId);
+            if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+              screenRenderer.viewStack.push('nowPlaying');
+            }
             screenRenderer.setTrack(track, true);
           } else if (res.action === 'togglePlay') {
             if (audioEngine.tracks.length === 0) {
@@ -1163,10 +1169,12 @@ function setupDirectClickWheel() {
             }
             if (!isPluggedIn) {
               toggleHeadphonePlug();
-            } else {
-              const isPlaying = audioEngine.toggleMusic();
-              screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
             }
+            const isPlaying = audioEngine.toggleMusic();
+            if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+              screenRenderer.viewStack.push('nowPlaying');
+            }
+            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
           } else if (res.action === 'shuffle') {
             if (audioEngine.tracks.length === 0) {
               showToast("Library is empty. Import songs to play.");
@@ -1175,11 +1183,12 @@ function setupDirectClickWheel() {
             audioEngine.playDriveSpinUp();
             if (!isPluggedIn) {
               toggleHeadphonePlug();
-            } else {
-              const isPlaying = audioEngine.toggleMusic(true);
-              screenRenderer.viewStack.push('nowPlaying');
-              screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
             }
+            const isPlaying = audioEngine.toggleMusic(true);
+            if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+              screenRenderer.viewStack.push('nowPlaying');
+            }
+            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
           }
         }
         if (screenTexture) screenTexture.needsUpdate = true;
@@ -1205,21 +1214,29 @@ function setupDirectClickWheel() {
           }
           if (!isPluggedIn) {
             toggleHeadphonePlug();
-          } else {
-            const isPlaying = audioEngine.toggleMusic();
-            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-            if (screenTexture) screenTexture.needsUpdate = true;
           }
+          const isPlaying = audioEngine.toggleMusic();
+          if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+            screenRenderer.viewStack.push('nowPlaying');
+          }
+          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+          if (screenTexture) screenTexture.needsUpdate = true;
         } else if (Math.abs(angleDeg) > 135) {
           // LEFT: PREV TRACK
           flashWheelButton('prev');
           const track = audioEngine.prevTrack();
+          if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+            screenRenderer.viewStack.push('nowPlaying');
+          }
           screenRenderer.setTrack(track, audioEngine.isPlaying);
           if (screenTexture) screenTexture.needsUpdate = true;
         } else if (Math.abs(angleDeg) < 45) {
           // RIGHT: NEXT TRACK
           flashWheelButton('next');
           const track = audioEngine.nextTrack();
+          if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+            screenRenderer.viewStack.push('nowPlaying');
+          }
           screenRenderer.setTrack(track, audioEngine.isPlaying);
           if (screenTexture) screenTexture.needsUpdate = true;
         }
@@ -1235,7 +1252,7 @@ function setupDirectClickWheel() {
       audioEngine.playWheelClick();
       const step = e.deltaY > 0 ? 1 : -1;
       if (screenRenderer.getCurrentView() === 'nowPlaying') {
-        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step < 0 ? 0.05 : -0.05));
         screenRenderer.showVolumeHUD(newVol);
       } else {
         screenRenderer.scroll(step);
@@ -1563,14 +1580,19 @@ function setupVirtualWheelHUD() {
         document.getElementById('settings-modal').classList.remove('hidden');
       } else if (res.action === 'playTrack') {
         const track = audioEngine.selectTrackById(res.trackId);
+        if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+          screenRenderer.viewStack.push('nowPlaying');
+        }
         screenRenderer.setTrack(track, true);
       } else if (res.action === 'togglePlay') {
         if (!isPluggedIn) {
           toggleHeadphonePlug();
-        } else {
-          const isPlaying = audioEngine.toggleMusic();
-          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
         }
+        const isPlaying = audioEngine.toggleMusic();
+        if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+          screenRenderer.viewStack.push('nowPlaying');
+        }
+        screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
       }
     }
     if (screenTexture) screenTexture.needsUpdate = true;
@@ -1584,16 +1606,21 @@ function setupVirtualWheelHUD() {
     }
     if (!isPluggedIn) {
       toggleHeadphonePlug();
-    } else {
-      const isPlaying = audioEngine.toggleMusic();
-      screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-      if (screenTexture) screenTexture.needsUpdate = true;
     }
+    const isPlaying = audioEngine.toggleMusic();
+    if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
+    screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+    if (screenTexture) screenTexture.needsUpdate = true;
   }
 
   function handlePrev() {
     flashWheelButton('prev');
     const track = audioEngine.prevTrack();
+    if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
     screenRenderer.setTrack(track, audioEngine.isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
   }
@@ -1601,6 +1628,9 @@ function setupVirtualWheelHUD() {
   function handleNext() {
     flashWheelButton('next');
     const track = audioEngine.nextTrack();
+    if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
     screenRenderer.setTrack(track, audioEngine.isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
   }
@@ -1660,12 +1690,14 @@ function setupVirtualWheelHUD() {
 
     const notch = (Math.PI / 13) / (simulatorSettings.sensitivity || 1.0);
     if (Math.abs(accumulatedVAngle) >= notch) {
-      const step = delta < 0 ? 1 : -1;
+      // In 2D screen coordinates (Y down), clockwise rotation INCREASES angle -> accumulatedVAngle > 0 -> step = +1 (SCROLL DOWN)
+      // Counter-clockwise rotation DECREASES angle -> accumulatedVAngle < 0 -> step = -1 (SCROLL UP)
+      const step = accumulatedVAngle > 0 ? 1 : -1;
       accumulatedVAngle = 0;
       audioEngine.playWheelClick();
 
       if (screenRenderer.getCurrentView() === 'nowPlaying') {
-        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? 0.05 : -0.05));
         screenRenderer.showVolumeHUD(newVol);
       } else {
         screenRenderer.scroll(step);
