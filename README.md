@@ -19,8 +19,24 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 - **Comprehensive SEO & Social Metadata**
   - Rich Open Graph (`og:*`), Twitter Cards (`summary_large_image`), and Schema.org JSON-LD structured data for fast indexing and high-fidelity sharing previews.
 
-- **Seamless Continuous Song Loop & Repeat**
-  - When a song ends, FeelPod 3D automatically advances to the next track or loops back to the start of the playlist in a seamless, uninterrupted repeat cycle.
+- **Transparent Liquid Glass Loading Screen**
+  - Features an Apple frosted liquid glass capsule (`backdrop-filter: blur(28px) saturate(180%)`) with a minimalist spinner and smooth transition.
+
+- **Real Device Battery Synchronization**
+  - Live battery percentage (`XX%`), battery level fill, and charging indicator (lightning bolt) rendered directly in the LCD status bar, dynamically synchronizing with the user's actual physical device battery state via `navigator.getBattery()`.
+
+- **Continuous Playback State Memory (Resume Where You Left Off)**
+  - Automatically saves the exact track, timestamp, and LCD menu view state in `localStorage` and `IndexedDB`.
+  - When returning or refreshing the page, FeelPod 3D immediately restores your exact song and playback position so you can pick up right where you left off.
+
+- **Import Entire Music Folder (`webkitdirectory`)**
+  - Direct folder selection button in the bottom options dock and "Import Folder" option on the LCD screen.
+  - Recursively imports all audio files (`.mp3, .m4a, .wav, .flac, .ogg`) from an entire folder at once, deduplicating and storing them in IndexedDB for continuous repeat listening.
+
+- **Seamless Continuous Song Loop & Repeat in Background**
+  - Seamless background audio playback via HTML5 Audio and Web Audio API.
+  - When a song ends, FeelPod 3D automatically advances to the next track or loops back to the start of the playlist in an uninterrupted repeat cycle.
+  - Fully integrated with the OS Media Session API (lock-screen album artwork, title, artist, and transport controls).
 
 - **Center Button Play/Pause & Streamlined LCD Menu**
   - Pressing the Center Button in Now Playing or selecting "Now Playing" from the root menu toggles Play/Pause directly.
@@ -31,15 +47,9 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Custom wallpaper images and background videos are stored as raw Blobs in IndexedDB, completely bypassing `localStorage` 5MB quota restrictions and temporary blob URL expirations—persisting reliably across device restarts, reloads, and browser sessions.
   - Automatic deduplication check prevents the same song from being added multiple times.
 
-- **iPhone Safari & Real Headphone Auto-Connect**
-  - Intelligently detects physical audio hardware changes via `navigator.mediaDevices`:
-    - **Connect**: When you plug in wired headphones or connect AirPods/Bluetooth, the 3D earphone plug automatically animates into the top jack and initiates playback.
-    - **Remove**: When headphones are disconnected, the 3D plug automatically unplugs and pauses playback immediately.
-    - **iOS Safari Privacy Protection**: Gracefully handles Safari's privacy-masked blank device labels (`""`), preventing false disconnection loops on iPhone.
-
 - **Direct Touch-to-Plug 3D Earphone Animation**
   - Tapping or clicking directly on the 3.5mm headphone plug or top jack opening triggers a smooth cubic-bezier insertion animation with realistic mechanical latching and immediate audio playback.
-  - Features an invisible tactile hit-box proxy cylinder (`R = 0.28, H = 0.95`) ensuring 100% reliable finger tap registration on mobile screens.
+  - Features dual tactile hit-box proxy meshes (`plugHitProxy` and `socketHitProxy`) ensuring 100% reliable finger tap registration on mobile screens.
 
 - **Transparent Animated Liquid Glass "Wear Headphones" Modal**
   - Redesigned with Apple-grade frosted liquid glass (`backdrop-filter: blur(40px) saturate(200%)`).
@@ -50,9 +60,9 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - Razor-sharp SVG vector icons for Previous, Next, and Play/Pause, eliminating unicode font misalignment.
   - Smooth thumb rotation around the wheel with mechanical click audio feedback and tactile tap zones.
 
-- **Permanent Real-Life 3.5mm Plug Tip (White + Light Grey)**
+- **Permanent Real-Life 3.5mm Plug Tip (White Delrin + Light Grey Chrome)**
   - 1:1 physical model based on genuine Apple EarPods:
-    - Conductor metal (Tip dome, Ring 1, Ring 2, Sleeve) permanently locked to luminous light grey silver chrome (`#f4f6fa` / `#dde2ea`) with dedicated upward fill lighting to prevent any dark shadowing.
+    - Conductor metal (Tip dome, Ring 1, Ring 2, Sleeve) permanently locked to luminous light silver-grey chrome (`#d8dde6` / `#c4cbd6`) with dedicated upward fill lighting to prevent any dark shadowing.
     - Crisp pure white Delrin insulator rings (`#ffffff`) flush with the metal cylinder.
     - Locked color state: casing and wheel customizations never alter the plug tip's authentic white + light grey finish.
 
@@ -112,7 +122,8 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 | **Show / Expand Options Bar** | Click floating **Controls** pill at bottom center |
 | **Customize Colors** | Click **Color** in bottom dock |
 | **Open Settings** | Click **Settings** in bottom dock, or select **Preferences...** on screen |
-| **Import Audio Files** | Click **Import**, select on screen, or drag & drop files into window |
+| **Import Audio Files** | Click **Songs** in bottom dock, select on screen, or drag & drop files |
+| **Import Music Folder** | Click **Folder** in bottom dock, or select "Import Folder" on screen |
 | **Feedback & Ideas** | Click **Submit Feedback & Ideas** in Settings (direct email) |
 | **OS Media Keys** | Keyboard Play/Pause, Next, Prev, or Mac Control Center |
 

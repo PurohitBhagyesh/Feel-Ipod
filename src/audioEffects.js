@@ -118,12 +118,20 @@ class iPodAudioEngine {
     if ('mediaSession' in navigator) {
       const track = this.getCurrentTrack();
       if (!track) return;
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title,
-        artist: track.artist,
-        album: track.album || "MP3 Player Simulator 3D"
-      });
-      navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: track.album || "FeelPod 3D",
+          artwork: track.coverUrl ? [
+            { src: track.coverUrl, sizes: '512x512', type: 'image/jpeg' }
+          ] : [
+            { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+            { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+        navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
+      } catch (_) {}
     }
   }
 

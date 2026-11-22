@@ -23,7 +23,8 @@ export class iPodScreenRenderer {
     this.textSize = 'medium'; // 'small' | 'medium' | 'large'
     this.textSizeScale = 1.0;
 
-    this.batteryLevel = 0.88;
+    this.batteryLevel = 1.0;
+    this.isBatteryCharging = false;
     this.isPlaying = false;
     this.vinylAngle = 0;
     this.volumeHUDTimer = 0;
@@ -55,6 +56,12 @@ export class iPodScreenRenderer {
     this.needsUpdate = true;
   }
 
+  setBattery(level, charging = false) {
+    this.batteryLevel = Math.max(0.04, Math.min(1.0, level));
+    this.isBatteryCharging = Boolean(charging);
+    this.needsUpdate = true;
+  }
+
   getFont(spec) {
     return spec.replace(/(\d+)px/, (_, px) => {
       const scaled = Math.round(parseInt(px, 10) * this.textSizeScale);
@@ -83,14 +90,16 @@ export class iPodScreenRenderer {
       return [
         { id: 'music', label: 'Music', hasSub: true },
         { id: 'nowPlaying', label: 'Now Playing', hasSub: false },
-        { id: 'import', label: 'Import MP3', hasSub: false },
+        { id: 'import', label: 'Import Songs', hasSub: false },
+        { id: 'importFolder', label: 'Import Folder', hasSub: false },
         { id: 'settings', label: 'Settings', hasSub: true },
         { id: 'shuffle', label: 'Shuffle Songs', hasSub: false }
       ];
     } else if (view === 'music') {
       return [
         { id: 'songs', label: 'Songs', hasSub: true },
-        { id: 'import', label: 'Import MP3', hasSub: false },
+        { id: 'import', label: 'Import Songs', hasSub: false },
+        { id: 'importFolder', label: 'Import Folder', hasSub: false },
         { id: 'artists', label: 'Artists', hasSub: false },
         { id: 'albums', label: 'Albums', hasSub: false }
       ];
@@ -143,6 +152,10 @@ export class iPodScreenRenderer {
 
     if (item.id === 'import') {
       return { action: 'importMp3' };
+    }
+
+    if (item.id === 'importFolder') {
+      return { action: 'importFolder' };
     }
 
     if (item.id === 'settingsModal') {
@@ -317,17 +330,54 @@ export class iPodScreenRenderer {
     ctx.fillStyle = '#111111';
     ctx.fillText(title, w / 2, 31);
 
-    // Battery Icon on right
-    const bx = w - 64;
-    const by = 14;
-    ctx.strokeStyle = '#444444';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(bx, by, 36, 18);
-    // Battery tip nub
-    ctx.fillRect(bx + 36, by + 4, 3, 10);
-    // Battery charge fill
-    ctx.fillStyle = '#34C759';
-    ctx.fillRect(bx + 2, by + 2, 32 * this.batteryLevel, 14);
+    // Real Device Battery Readout on Right
+    const pct = Math.round(this.batteryLevel * 100);
+    const pctStr = `${pct}%`;
+
+    // Battery Percentage Text
+    ctx.font = this.getFont('600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#222222';
+    ctx.fillText(pctStr, w - 50, 29);
+
+    // Battery Shell
+    const bx = w - 44;
+    const by = 15;
+    const bw = 30;
+    const bh = 16;
+
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    // Battery positive terminal nub
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(bx + bw, by + 4, 2.5, bh - 8);
+
+    // Battery Charge Fill
+    const fillW = Math.max(2, (bw - 4) * this.batteryLevel);
+    if (this.isBatteryCharging) {
+      ctx.fillStyle = '#16a34a'; // Vibrant green when charging
+    } else if (this.batteryLevel <= 0.20) {
+      ctx.fillStyle = '#dc2626'; // Alert red
+    } else {
+      ctx.fillStyle = '#22c55e'; // Normal Apple battery green
+    }
+    ctx.fillRect(bx + 2, by + 2, fillW, bh - 4);
+
+    // Crisp lightning bolt indicator if device is charging
+    if (this.isBatteryCharging) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(bx + bw / 2 + 1, by + 2);
+      ctx.lineTo(bx + bw / 2 - 2, by + 8);
+      ctx.lineTo(bx + bw / 2, by + 8);
+      ctx.lineTo(bx + bw / 2 - 1, by + bh - 2);
+      ctx.lineTo(bx + bw / 2 + 3, by + 7);
+      ctx.lineTo(bx + bw / 2 + 1, by + 7);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   drawMenuList(ctx, w, h, view) {

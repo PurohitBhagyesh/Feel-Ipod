@@ -8,7 +8,7 @@ import { saveCustomBackground, getCustomBackground, clearCustomBackground } from
 // --- State & Variables ---
 let scene, camera, renderer, controls;
 let ipodGroup, ipodBodyMesh;
-let headphoneJackPlug, earphoneCableLine, gripMesh;
+let headphoneJackPlug, earphoneCableLine, gripMesh, socketHitProxy;
 let screenTexture, screenRenderer, screenMesh, screenBezelMesh;
 
 // World Coordinates for the Top Headphone Hole & Plug
@@ -33,7 +33,6 @@ const simulatorSettings = {
   reduceMotion: false,
   sensitivity: 1.0,
   virtualWheel: false,
-  autoPlug: true,
   textSize: 'medium',
   customBg: null,
   customVideo: false
@@ -233,12 +232,20 @@ function init() {
   setupThemeCustomizer();
   setupSettingsModal();
   setupVirtualWheelHUD();
-  setupPhysicalHeadphoneDetection();
+  setupBatteryMonitoring();
 
-  // Audio Sync
+  // Audio Sync & Continuous Playback Position Persistence
+  let lastStateSaveTime = 0;
   window.addEventListener('ipod-timeupdate', (e) => {
     screenRenderer.setTimeUpdate(e.detail.currentTime, e.detail.duration, e.detail.progress);
     if (screenTexture) screenTexture.needsUpdate = true;
+
+    // Periodically save exact playback position so user resumes where they left off
+    const now = Date.now();
+    if (now - lastStateSaveTime > 1200) {
+      lastStateSaveTime = now;
+      savePlaybackState();
+    }
   });
 
   window.addEventListener('ipod-state-change', () => {
@@ -247,13 +254,51 @@ function init() {
     screenRenderer.setTrack(track, isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
     updateTopNavTrackBadge(track, isPlaying);
+    savePlaybackState();
   });
 
-  // Load persisted tracks from local IndexedDB
+  window.addEventListener('beforeunload', () => {
+    savePlaybackState();
+  });
+
+  // Load persisted tracks from local IndexedDB and restore user's last session
   audioEngine.loadPersistedTracks().then((tracks) => {
     if (tracks && tracks.length > 0) {
       screenRenderer.setTracks(tracks);
-      screenRenderer.setTrack(tracks[0], false);
+
+      let restored = false;
+      try {
+        const saved = localStorage.getItem('feelpod_playback_state');
+        if (saved) {
+          const state = JSON.parse(saved);
+          if (state && state.trackId) {
+            const trackIdx = tracks.findIndex(t => t.id === state.trackId);
+            if (trackIdx !== -1) {
+              audioEngine.currentTrackIndex = trackIdx;
+              const track = tracks[trackIdx];
+              audioEngine.loadTrack(track);
+              if (state.currentTime) {
+                audioEngine.audioElement.currentTime = state.currentTime;
+                audioEngine.currentTime = state.currentTime;
+              }
+              screenRenderer.setTrack(track, false);
+              const dur = track.durationSeconds || 210;
+              const prog = dur > 0 ? (state.currentTime / dur) : 0;
+              screenRenderer.setTimeUpdate(state.currentTime || 0, dur, prog);
+              if (state.view === 'nowPlaying') {
+                screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
+              }
+              restored = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Playback restore error:', err);
+      }
+
+      if (!restored) {
+        screenRenderer.setTrack(tracks[0], false);
+      }
       if (screenTexture) screenTexture.needsUpdate = true;
     } else {
       screenRenderer.setTracks([]);
@@ -398,16 +443,16 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Authentic Apple Wired Earphone 3.5mm Plug (Pure White + Light Grey Finish) ---
+// --- Authentic Apple Wired Earphone 3.5mm Plug (Pure White + Light Grey Metal Finish) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Clean luminous light grey silver chrome conductors (Bright, non-black even in downward shadow)
+  // Machined light silver-grey chrome conductors with authentic metallic sheen
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xf4f6fa,
-    metalness: 0.35,  // Balanced metalness gives strong diffuse reflection so it stays bright silver/white
-    roughness: 0.16,
-    emissive: 0x22262e // Ambient tone floor ensures tip dome NEVER appears dark or black
+    color: 0xd8dde6, // Refined authentic light silver-grey metal tone
+    metalness: 0.52,  // Strong metallic sheen
+    roughness: 0.20,
+    emissive: 0x1c2028 // Ambient floor ensures tip dome NEVER appears dark or black
   });
 
   // Authentic Apple Wired EarPods Crisp Pure White Delrin Insulator Bands
@@ -420,10 +465,10 @@ function createHeadphoneJackAssembly() {
 
   // Soft light grey detent latching neck groove
   const waistMat = new THREE.MeshStandardMaterial({
-    color: 0xdde2ea,
-    metalness: 0.30,
-    roughness: 0.20,
-    emissive: 0x22262e
+    color: 0xc4cbd6,
+    metalness: 0.45,
+    roughness: 0.24,
+    emissive: 0x1c2028
   });
 
   const R = 0.029; // Uniform outer conductor radius (flush continuous cylinder)
@@ -526,13 +571,29 @@ function createHeadphoneJackAssembly() {
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
 
-  // 15. Invisible Tactile Hit Box Proxy for High-Precision Mobile & Touch Detection
-  const hitProxyGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.95, 16);
-  const hitProxyMat = new THREE.MeshBasicMaterial({ visible: false });
+  // 15. Tactile Hit Box Proxy for High-Precision Mobile & Touch Detection
+  // (Uses transparent material with opacity 0 so Three.js Raycaster intersects it reliably)
+  const hitProxyGeo = new THREE.CylinderGeometry(0.36, 0.36, 1.25, 16);
+  const hitProxyMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false
+  });
   const hitProxy = new THREE.Mesh(hitProxyGeo, hitProxyMat);
   hitProxy.name = 'plugHitProxy';
   hitProxy.position.y = 0.05;
   headphoneJackPlug.add(hitProxy);
+
+  // 16. Top Jack Opening Socket Hit Proxy
+  const socketProxyGeo = new THREE.CylinderGeometry(0.40, 0.40, 0.65, 16);
+  const socketProxyMat = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false
+  });
+  socketHitProxy = new THREE.Mesh(socketProxyGeo, socketProxyMat);
+  socketHitProxy.position.set(0, 0.90, 0);
+  scene.add(socketHitProxy);
 
   // Position hovering directly above top opening
   headphoneJackPlug.position.set(PLUG_HOLE_X, PLUG_HOVER_Y, PLUG_HOLE_Z);
@@ -843,7 +904,7 @@ function toggleHeadphonePlug(forceState = null) {
   animatePlugStep();
 }
 
-// Setup Plug Interaction (Optimized for Mobile Touch & Desktop Pointer Clicks)
+// Setup Plug Interaction (Optimized for Instant Mobile Touch & Desktop Pointer Clicks)
 function setupPlugInteraction() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -852,7 +913,7 @@ function setupPlugInteraction() {
 
   window.addEventListener('pointerdown', (e) => {
     // Ignore clicks on HTML navigation / dock / modals
-    if (e.target.closest('#bottom-dock') || e.target.closest('.bottom-dock') || e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud') || e.target.closest('#immersive-modal')) {
+    if (e.target.closest('#bottom-dock') || e.target.closest('.apple-glass-dock') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud') || e.target.closest('#immersive-modal') || e.target.closest('.dock-expand-tab')) {
       isCandidate = false;
       return;
     }
@@ -865,13 +926,13 @@ function setupPlugInteraction() {
     isCandidate = false;
 
     const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
-    if (moveDist > 14) return; // Discard drags or camera rotations
+    if (moveDist > 26) return; // Discard intentional drags or camera rotations
 
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    // Hit against the plug or its hit proxy
+    // 1. Hit against the plug or its hit proxy
     if (headphoneJackPlug) {
       const plugHits = raycaster.intersectObjects(headphoneJackPlug.children, true);
       if (plugHits.length > 0) {
@@ -881,12 +942,22 @@ function setupPlugInteraction() {
       }
     }
 
-    // Hit against the top opening of the MP3 player (y > 0.58 in world coordinates)
+    // 2. Direct hit against the top jack socket hit proxy
+    if (socketHitProxy) {
+      const socketHits = raycaster.intersectObject(socketHitProxy, false);
+      if (socketHits.length > 0) {
+        audioEngine.init();
+        toggleHeadphonePlug();
+        return;
+      }
+    }
+
+    // 3. Hit against the top opening area of the MP3 player (y > 0.55 in world coordinates)
     if (ipodGroup) {
       const ipodHits = raycaster.intersectObjects(ipodGroup.children, true);
       if (ipodHits.length > 0) {
         const hit = ipodHits[0];
-        if (hit.point.y > 0.58 && Math.abs(hit.point.x) < 0.35) {
+        if (hit.point.y > 0.55 && Math.abs(hit.point.x) < 0.40) {
           audioEngine.init();
           toggleHeadphonePlug();
         }
@@ -1057,6 +1128,9 @@ function setupDirectClickWheel() {
           if (res.action === 'importMp3') {
             const fileInput = document.getElementById('mp3-file-input');
             if (fileInput) fileInput.click();
+          } else if (res.action === 'importFolder') {
+            const folderInput = document.getElementById('mp3-folder-input');
+            if (folderInput) folderInput.click();
           } else if (res.action === 'openSettings') {
             document.getElementById('settings-modal').classList.remove('hidden');
           } else if (res.action === 'playTrack') {
@@ -1187,6 +1261,14 @@ function setupTopNav() {
     btnImport.addEventListener('click', () => {
       const fileInput = document.getElementById('mp3-file-input');
       if (fileInput) fileInput.click();
+    });
+  }
+
+  const btnImportFolder = document.getElementById('btn-import-folder');
+  if (btnImportFolder) {
+    btnImportFolder.addEventListener('click', () => {
+      const folderInput = document.getElementById('mp3-folder-input');
+      if (folderInput) folderInput.click();
     });
   }
 
@@ -1382,14 +1464,6 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
   });
 
-  // Auto-Plug
-  const chkAutoPlug = document.getElementById('setting-auto-plug');
-  chkAutoPlug.checked = simulatorSettings.autoPlug;
-  chkAutoPlug.addEventListener('change', (e) => {
-    simulatorSettings.autoPlug = e.target.checked;
-    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
-  });
-
   // Custom Background Wallpaper (Supports Images & Videos with permanent IndexedDB persistence)
   const bgInput = document.getElementById('bg-file-input');
   const bgVideo = document.getElementById('bg-video');
@@ -1471,6 +1545,9 @@ function setupVirtualWheelHUD() {
     if (res) {
       if (res.action === 'importMp3') {
         document.getElementById('mp3-file-input').click();
+      } else if (res.action === 'importFolder') {
+        const folderInput = document.getElementById('mp3-folder-input');
+        if (folderInput) folderInput.click();
       } else if (res.action === 'openSettings') {
         document.getElementById('settings-modal').classList.remove('hidden');
       } else if (res.action === 'playTrack') {
@@ -1617,80 +1694,35 @@ function setupVirtualWheelHUD() {
   });
 }
 
-// --- Auto-Connect & Auto-Disconnect Real Physical Headphones ---
-let baselineDeviceCount = null;
-
-function setupPhysicalHeadphoneDetection() {
-  async function checkHeadphones(isInit = false) {
-    if (!simulatorSettings.autoPlug) return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioOutputs = devices.filter(d => d.kind === 'audiooutput' || d.kind === 'audioinput');
-
-      // Check if all device labels are empty strings (iOS Safari privacy protection)
-      const allLabelsEmpty = audioOutputs.length > 0 && audioOutputs.every(d => !d.label || d.label.trim() === "");
-      if (allLabelsEmpty) {
-        // Labels are masked by browser security/privacy policies (e.g. Safari on iOS).
-        // If device count increases above baseline, headphones were plugged in.
-        if (baselineDeviceCount !== null && audioOutputs.length > baselineDeviceCount) {
-          if (!isPluggedIn) {
-            toggleHeadphonePlug(true);
-            showToast("Headphones connected: 3D jack auto-plugged");
-          }
-        }
-        // NEVER auto-unplug when labels are empty, because Safari does not disclose headphone removal
-        // and auto-unplugging causes false disconnect loops!
-        return;
-      }
-
-      // Check device labels for headphone keywords (AirPods, wired headphones, Bluetooth, etc.)
-      const hasHeadphones = audioOutputs.some(d =>
-        /headphone|headset|earbud|airpod|earphone|bluetooth|beats|sony|bose|external/i.test(d.label)
-      );
-
-      // Track baseline device count when labels might be masked by browser privacy
-      if (baselineDeviceCount === null) {
-        baselineDeviceCount = audioOutputs.length;
-      }
-
-      // Check if only internal speaker is present
-      const isInternalSpeakerOnly = audioOutputs.length > 0 && audioOutputs.every(d =>
-        /speaker|built-in|internal/i.test(d.label)
-      );
-
-      const isConnected = hasHeadphones || (!isInternalSpeakerOnly && audioOutputs.length > baselineDeviceCount);
-
-      if (isConnected) {
-        if (!isPluggedIn) {
-          toggleHeadphonePlug(true);
-          showToast("Headphones connected: 3D jack auto-plugged");
-        }
-      } else if (isInternalSpeakerOnly) {
-        if (isPluggedIn && !isInit) {
-          toggleHeadphonePlug(false);
-          showToast("Headphones removed: 3D jack unplugged");
+// --- Real Device Battery Monitoring (Live LCD Screen Readout) ---
+function setupBatteryMonitoring() {
+  if (navigator.getBattery) {
+    navigator.getBattery().then(battery => {
+      function update() {
+        if (screenRenderer) {
+          screenRenderer.setBattery(battery.level, battery.charging);
+          if (screenTexture) screenTexture.needsUpdate = true;
         }
       }
-    } catch (err) {
-      console.warn('Physical headphone detection check:', err);
-    }
+      update();
+      battery.addEventListener('levelchange', update);
+      battery.addEventListener('chargingchange', update);
+    }).catch(() => {});
   }
+}
 
-  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-    navigator.mediaDevices.addEventListener('devicechange', () => checkHeadphones(false));
-  }
-  window.addEventListener('focus', () => checkHeadphones(false));
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) checkHeadphones(false);
-  });
-
-  // Initial check on page load
-  checkHeadphones(true);
-
-  // Periodic polling every 3.5s for seamless automatic removal on mobile/desktop
-  setInterval(() => checkHeadphones(false), 3500);
+// --- Save Exact Playback Position so User Resumes Where They Left Off ---
+function savePlaybackState() {
+  const currentTrack = audioEngine.getCurrentTrack();
+  if (!currentTrack) return;
+  const state = {
+    trackId: currentTrack.id,
+    currentTime: audioEngine.currentTime || 0,
+    view: screenRenderer ? screenRenderer.getCurrentView() : 'root'
+  };
+  try {
+    localStorage.setItem('feelpod_playback_state', JSON.stringify(state));
+  } catch (_) {}
 }
 
 // --- Load Saved Settings & Permanent Custom Background (from IndexedDB) ---
@@ -1746,9 +1778,10 @@ async function loadSavedSettings() {
   updateCustomBgState();
 }
 
-// --- Local MP3 File Import via Menu, Button, File Input, or Drag & Drop ---
+// --- Local MP3 File & Folder Import via Menu, Button, File Input, or Drag & Drop ---
 function setupMP3DropImporter() {
   const fileInput = document.getElementById('mp3-file-input');
+  const folderInput = document.getElementById('mp3-folder-input');
 
   window.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -1764,6 +1797,14 @@ function setupMP3DropImporter() {
 
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleAudioFilesImport(e.target.files);
+      }
+    });
+  }
+
+  if (folderInput) {
+    folderInput.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         handleAudioFilesImport(e.target.files);
       }
