@@ -1,4 +1,4 @@
-// Authentic iPod Classic LCD Screen Renderer matching the classic interface
+// Authentic iPod LCD Screen Renderer matching the classic interface
 
 export class iPodScreenRenderer {
   constructor() {
@@ -11,22 +11,27 @@ export class iPodScreenRenderer {
     // View State: 'root', 'music', 'songs', 'nowPlaying', 'extras', 'settings'
     this.viewStack = ['root'];
     this.selectedIndices = {
-      root: 3, // Default to 'Shuffle Songs' matching user reference image!
+      root: 0,
       music: 0,
       songs: 0,
       extras: 0,
       settings: 0
     };
 
-    this.backlightOn = true;
     this.batteryLevel = 0.88;
     this.isPlaying = false;
+    this.vinylAngle = 0;
+    this.volumeHUDTimer = 0;
+    this.currentVolume = 0.85;
+
+    // Peak levels for live 10-band LCD equalizer
+    this.eqPeakBars = new Array(10).fill(0);
 
     this.tracks = [];
     this.currentTrack = {
       title: "Retro Groove",
-      artist: "Nostalgia Sound",
-      album: "Classic 2004",
+      artist: "Antigravity Sound",
+      album: "Nostalgia Vibes",
       duration: "3:24",
       currentTimeStr: "0:00",
       progress: 0.0
@@ -42,19 +47,26 @@ export class iPodScreenRenderer {
     return this.viewStack[this.viewStack.length - 1];
   }
 
+  showVolumeHUD(vol) {
+    this.currentVolume = vol;
+    this.volumeHUDTimer = 75; // show for ~75 frames (~1.2s)
+    this.needsUpdate = true;
+  }
+
   getMenuItems() {
     const view = this.getCurrentView();
     if (view === 'root') {
       return [
         { id: 'music', label: 'Music', hasSub: true },
+        { id: 'import', label: 'Import MP3', hasSub: false },
         { id: 'extras', label: 'Extras', hasSub: true },
         { id: 'settings', label: 'Settings', hasSub: true },
-        { id: 'shuffle', label: 'Shuffle Songs', hasSub: false },
-        { id: 'backlight', label: 'Backlight', hasSub: false }
+        { id: 'shuffle', label: 'Shuffle Songs', hasSub: false }
       ];
     } else if (view === 'music') {
       return [
         { id: 'songs', label: 'Songs', hasSub: true },
+        { id: 'import', label: 'Import MP3', hasSub: false },
         { id: 'artists', label: 'Artists', hasSub: false },
         { id: 'albums', label: 'Albums', hasSub: false }
       ];
@@ -67,8 +79,8 @@ export class iPodScreenRenderer {
     } else if (view === 'settings') {
       return [
         { id: 'about', label: 'About', hasSub: false },
-        { id: 'timer', label: 'Backlight Timer', hasSub: false },
-        { id: 'repeat', label: 'Repeat: All', hasSub: false }
+        { id: 'repeat', label: 'Repeat: All', hasSub: false },
+        { id: 'volumeLimit', label: 'Volume Limit', hasSub: false }
       ];
     } else if (view === 'songs') {
       return this.tracks.map((t, idx) => ({
@@ -84,8 +96,7 @@ export class iPodScreenRenderer {
   scroll(delta) {
     const view = this.getCurrentView();
     if (view === 'nowPlaying') {
-      this.currentTrack.progress = Math.max(0, Math.min(1.0, this.currentTrack.progress + delta * 0.03));
-      this.needsUpdate = true;
+      // In Now Playing, wheel turn adjusts volume
       return;
     }
 
@@ -108,6 +119,10 @@ export class iPodScreenRenderer {
 
     if (!item) return null;
 
+    if (item.id === 'import') {
+      return { action: 'importMp3' };
+    }
+
     if (view === 'root') {
       if (item.id === 'music') {
         this.viewStack.push('music');
@@ -120,8 +135,6 @@ export class iPodScreenRenderer {
         this.selectedIndices.settings = 0;
       } else if (item.id === 'shuffle') {
         return { action: 'shuffle' };
-      } else if (item.id === 'backlight') {
-        this.backlightOn = !this.backlightOn;
       }
     } else if (view === 'music') {
       if (item.id === 'songs') {
@@ -166,32 +179,44 @@ export class iPodScreenRenderer {
       const secs = ('0' + Math.floor(currentTime % 60)).slice(-2);
       this.currentTrack.currentTimeStr = `${mins}:${secs}`;
     }
+    if (duration !== undefined && currentTime !== undefined) {
+      const remainingSec = Math.max(0, Math.floor(duration - currentTime));
+      const remMins = Math.floor(remainingSec / 60);
+      const remSecs = ('0' + Math.floor(remainingSec % 60)).slice(-2);
+      this.currentTrack.remainingTimeStr = `-${remMins}:${remSecs}`;
+    }
     this.needsUpdate = true;
   }
 
-  render() {
-    if (!this.needsUpdate) return false;
+  render(freqData = null) {
+    const view = this.getCurrentView();
+    // Continuous rendering when nowPlaying and playing for EQ & spinning vinyl
+    if (view === 'nowPlaying' && this.isPlaying) {
+      this.needsUpdate = true;
+    }
+
+    if (!this.needsUpdate && this.volumeHUDTimer <= 0) return false;
+
     const ctx = this.ctx;
     const w = this.canvas.width;
     const h = this.canvas.height;
 
-    // 1. LCD Background (Matching user reference image: clean crisp white)
-    if (this.backlightOn) {
-      ctx.fillStyle = '#ffffff';
-    } else {
-      ctx.fillStyle = '#9aa594'; // Passive monochrome LCD look
-    }
+    // 1. Crisp authentic white LCD display
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
     // 2. Status Bar Header
     this.drawHeader(ctx, w);
 
     // 3. Content
-    const view = this.getCurrentView();
     if (view === 'nowPlaying') {
-      this.drawNowPlaying(ctx, w, h);
+      this.drawNowPlaying(ctx, w, h, freqData);
     } else {
       this.drawMenuList(ctx, w, h, view);
+    }
+
+    if (this.volumeHUDTimer > 0) {
+      this.volumeHUDTimer--;
     }
 
     this.needsUpdate = false;
@@ -202,25 +227,41 @@ export class iPodScreenRenderer {
     const headerH = 46;
 
     // Header Background
-    ctx.fillStyle = this.backlightOn ? '#ffffff' : '#9aa594';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, headerH);
 
-    // Thin separator line below header (exact match to screenshot)
-    ctx.fillStyle = this.backlightOn ? '#c8c8c8' : '#737f6d';
+    // Thin separator line below header
+    ctx.fillStyle = '#c8c8c8';
     ctx.fillRect(0, headerH - 1, w, 1);
 
     // Play/Pause icon (top left)
-    ctx.fillStyle = this.backlightOn ? '#333333' : '#1c221a';
+    ctx.fillStyle = '#333333';
     if (this.isPlaying) {
+      // Play symbol
       ctx.beginPath();
-      ctx.moveTo(16, 14);
-      ctx.lineTo(28, 23);
-      ctx.lineTo(16, 32);
+      ctx.moveTo(16, 15);
+      ctx.lineTo(26, 23);
+      ctx.lineTo(16, 31);
       ctx.closePath();
       ctx.fill();
+
+      // Mini animated sound wave icon
+      const t = Date.now() * 0.008;
+      const h1 = 6 + Math.abs(Math.sin(t * 1.5)) * 10;
+      const h2 = 6 + Math.abs(Math.sin(t * 2.2)) * 14;
+      const h3 = 6 + Math.abs(Math.sin(t * 1.8)) * 12;
+
+      ctx.fillStyle = '#5b7298';
+      ctx.fillRect(32, 23 - h1 / 2, 2.5, h1);
+      ctx.fillRect(37, 23 - h2 / 2, 2.5, h2);
+      ctx.fillRect(42, 23 - h3 / 2, 2.5, h3);
+    } else {
+      // Pause symbol (two bars)
+      ctx.fillRect(16, 15, 3.5, 16);
+      ctx.fillRect(23, 15, 3.5, 16);
     }
 
-    // Title in center ('iPod' matching user's reference image!)
+    // Title in center
     let title = 'iPod';
     const view = this.getCurrentView();
     if (view === 'music') title = 'Music';
@@ -231,13 +272,13 @@ export class iPodScreenRenderer {
 
     ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = this.backlightOn ? '#222222' : '#111111';
+    ctx.fillStyle = '#111111';
     ctx.fillText(title, w / 2, 31);
 
-    // Battery Icon on right (Matching reference image)
+    // Battery Icon on right
     const bx = w - 64;
     const by = 14;
-    ctx.strokeStyle = this.backlightOn ? '#444444' : '#222222';
+    ctx.strokeStyle = '#444444';
     ctx.lineWidth = 2;
     ctx.strokeRect(bx, by, 36, 18);
     // Battery tip nub
@@ -260,79 +301,208 @@ export class iPodScreenRenderer {
       const isSelected = index === selectedIdx;
 
       if (isSelected) {
-        // Classic muted slate/indigo-blue selection bar matching user screenshot
-        ctx.fillStyle = this.backlightOn ? '#6f82a5' : '#45503f';
+        // Classic muted slate/indigo-blue selection bar
+        ctx.fillStyle = '#6f82a5';
         ctx.fillRect(0, y, w, itemHeight);
       }
 
       // Label text
       ctx.textAlign = 'left';
       ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillStyle = isSelected ? '#ffffff' : (this.backlightOn ? '#000000' : '#111111');
+      ctx.fillStyle = isSelected ? '#ffffff' : '#000000';
       ctx.fillText(item.label, 20, y + 33);
 
-      // Chevron arrow (>) on right
+      // Chevron arrow (›) on right
       if (item.hasSub) {
         ctx.textAlign = 'right';
         ctx.font = 'bold 24px sans-serif';
-        ctx.fillStyle = isSelected ? '#ffffff' : (this.backlightOn ? '#555555' : '#2b3325');
+        ctx.fillStyle = isSelected ? '#ffffff' : '#555555';
         ctx.fillText('›', w - 20, y + 33);
+      } else if (item.id === 'import') {
+        // Subtle folder icon indicator
+        ctx.textAlign = 'right';
+        ctx.font = '18px sans-serif';
+        ctx.fillStyle = isSelected ? '#ffffff' : '#888888';
+        ctx.fillText('📁', w - 20, y + 33);
       }
     });
   }
 
-  drawNowPlaying(ctx, w, h) {
-    const artSize = 140;
-    const artX = 28;
-    const artY = 68;
+  drawNowPlaying(ctx, w, h, freqData) {
+    const artSize = 138;
+    const artX = 24;
+    const artY = 62;
 
-    // Album Art Box with vinyl groove
-    const artGrad = ctx.createLinearGradient(artX, artY, artX + artSize, artY + artSize);
-    artGrad.addColorStop(0, '#536976');
-    artGrad.addColorStop(1, '#292E49');
-    ctx.fillStyle = artGrad;
+    // 1. Spinning Vinyl Album Artwork
+    if (this.isPlaying) {
+      this.vinylAngle += 0.045;
+    }
+
+    ctx.save();
+    // Rounded album art frame
+    ctx.beginPath();
+    ctx.roundRect(artX, artY, artSize, artSize, 8);
+    ctx.clip();
+
+    // Dark record backdrop
+    ctx.fillStyle = '#14171f';
     ctx.fillRect(artX, artY, artSize, artSize);
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(artX + artSize/2, artY + artSize/2, 42, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(artX + artSize/2, artY + artSize/2, 16, 0, Math.PI * 2);
-    ctx.stroke();
+    // Rotating vinyl disc
+    const cx = artX + artSize / 2;
+    const cy = artY + artSize / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(this.vinylAngle);
 
-    // Track metadata
-    const textX = artX + artSize + 22;
+    // Grooves
+    ctx.strokeStyle = '#282d3c';
+    ctx.lineWidth = 1.2;
+    for (let r = 24; r < 64; r += 7) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Specular light sheen wedges
+    const gradSheen = ctx.createRadialGradient(0, 0, 10, 0, 0, 64);
+    gradSheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+    gradSheen.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+    ctx.fillStyle = gradSheen;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 64, -0.4, 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 64, Math.PI - 0.4, Math.PI + 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Center vinyl sticker
+    ctx.fillStyle = '#cf352e'; // Retro red record center
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spindle hole
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // 2. Track Metadata (Right Column)
+    const textX = artX + artSize + 20;
+
+    // Track Counter (e.g. "1 of 4")
+    const trackIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
+    const countStr = trackIndex !== -1 ? `${trackIndex + 1} of ${this.tracks.length}` : `1 of ${this.tracks.length || 1}`;
+    ctx.font = 'bold 13px -apple-system, sans-serif';
+    ctx.fillStyle = '#8e99a8';
     ctx.textAlign = 'left';
+    ctx.fillText(countStr, textX, 78);
 
-    ctx.font = 'bold 24px -apple-system, sans-serif';
-    ctx.fillStyle = this.backlightOn ? '#000000' : '#111111';
-    const title = this.currentTrack.title.length > 17 ? this.currentTrack.title.slice(0, 15) + '...' : this.currentTrack.title;
+    // Track Title
+    ctx.font = 'bold 22px -apple-system, sans-serif';
+    ctx.fillStyle = '#000000';
+    const title = this.currentTrack.title.length > 18 ? this.currentTrack.title.slice(0, 16) + '...' : this.currentTrack.title;
     ctx.fillText(title, textX, 104);
 
-    ctx.font = '20px -apple-system, sans-serif';
-    ctx.fillStyle = this.backlightOn ? '#444444' : '#2b3327';
+    // Artist
+    ctx.font = '18px -apple-system, sans-serif';
+    ctx.fillStyle = '#333333';
     const artist = this.currentTrack.artist.length > 20 ? this.currentTrack.artist.slice(0, 18) + '...' : this.currentTrack.artist;
-    ctx.fillText(artist, textX, 136);
+    ctx.fillText(artist, textX, 130);
 
-    ctx.font = '17px -apple-system, sans-serif';
-    ctx.fillStyle = this.backlightOn ? '#666666' : '#3d4737';
-    ctx.fillText(this.currentTrack.album || "Classic Album", textX, 166);
+    // Album
+    ctx.font = '15px -apple-system, sans-serif';
+    ctx.fillStyle = '#666666';
+    const album = this.currentTrack.album || "Imported MP3";
+    const albumShort = album.length > 22 ? album.slice(0, 20) + '...' : album;
+    ctx.fillText(albumShort, textX, 153);
 
-    // Progress bar
-    const barX = 28;
-    const barY = 246;
-    const barW = w - 56;
+    // Format Pill Badge: [ MP3 • 320 KBPS ]
+    const badgeW = 120;
+    const badgeH = 20;
+    const badgeY = 166;
+    ctx.fillStyle = '#f0f3f8';
+    ctx.strokeStyle = '#d0d8e4';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(textX, badgeY, badgeW, badgeH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#55667e';
+    ctx.textAlign = 'center';
+    ctx.fillText('MP3 • 320 KBPS', textX + badgeW / 2, badgeY + 14);
+
+    // 3. Real-Time 10-Band LCD Graphic Equalizer (Makes music feel ALIVE!)
+    const eqX = textX;
+    const eqY = 196;
+    const eqTotalW = w - textX - 24;
+    const numBars = 10;
+    const barWidth = Math.floor(eqTotalW / numBars) - 3;
+    const numSegments = 6;
+    const segHeight = 4;
+    const segGap = 2;
+
+    for (let i = 0; i < numBars; i++) {
+      let rawVal = 0;
+      if (freqData && this.isPlaying) {
+        rawVal = freqData[i] || 0;
+      }
+      const targetSegs = Math.round((rawVal / 255) * numSegments);
+
+      // Smooth peak hold falloff
+      if (targetSegs >= this.eqPeakBars[i]) {
+        this.eqPeakBars[i] = targetSegs;
+      } else {
+        this.eqPeakBars[i] = Math.max(0, this.eqPeakBars[i] - 0.25);
+      }
+
+      const activeSegs = Math.min(numSegments, Math.max(0, targetSegs));
+      const bx = eqX + i * (barWidth + 3);
+
+      for (let s = 0; s < numSegments; s++) {
+        const sy = eqY + (numSegments - 1 - s) * (segHeight + segGap);
+        if (s < activeSegs) {
+          // Lit LCD segment
+          ctx.fillStyle = s >= numSegments - 2 ? '#455d82' : '#6f82a5';
+        } else {
+          // Unlit faint LCD segment grid
+          ctx.fillStyle = '#e8ebf0';
+        }
+        ctx.fillRect(bx, sy, barWidth, segHeight);
+      }
+
+      // Peak dot
+      const peakIdx = Math.min(numSegments - 1, Math.floor(this.eqPeakBars[i]));
+      if (peakIdx > 0 && this.isPlaying) {
+        const py = eqY + (numSegments - 1 - peakIdx) * (segHeight + segGap);
+        ctx.fillStyle = '#2b3a52';
+        ctx.fillRect(bx, py - 1, barWidth, 2);
+      }
+    }
+
+    // 4. Progress Bar & Elapsed/Remaining Timers
+    const barX = 24;
+    const barY = 260;
+    const barW = w - 48;
     const barH = 12;
 
-    ctx.fillStyle = this.backlightOn ? '#d8d8d8' : '#737f6d';
+    // Track groove
+    ctx.fillStyle = '#e4e7ed';
     ctx.beginPath();
     ctx.roundRect(barX, barY, barW, barH, 6);
     ctx.fill();
 
     const progressW = barW * Math.max(0, Math.min(1.0, this.currentTrack.progress || 0));
-    ctx.fillStyle = this.backlightOn ? '#6f82a5' : '#333b2a';
+    ctx.fillStyle = '#6f82a5';
     ctx.beginPath();
     ctx.roundRect(barX, barY, progressW, barH, 6);
     ctx.fill();
@@ -344,22 +514,53 @@ export class iPodScreenRenderer {
     ctx.strokeStyle = '#2c2c2e';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.arc(px, py, 7.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Elapsed / Remaining Time
     ctx.font = '16px -apple-system, sans-serif';
-    ctx.fillStyle = this.backlightOn ? '#666666' : '#222222';
+    ctx.fillStyle = '#555555';
     ctx.textAlign = 'left';
     ctx.fillText(this.currentTrack.currentTimeStr || "0:00", barX, barY + 34);
 
     ctx.textAlign = 'right';
-    ctx.fillText('-' + this.currentTrack.duration, barX + barW, barY + 34);
+    const remStr = this.currentTrack.remainingTimeStr || ('-' + this.currentTrack.duration);
+    ctx.fillText(remStr, barX + barW, barY + 34);
 
-    ctx.font = 'italic 15px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = this.backlightOn ? '#888888' : '#333b2e';
-    ctx.fillText('Press MENU to return', w / 2, h - 16);
+    // 5. Volume HUD Overlay or Navigation Hint
+    if (this.volumeHUDTimer > 0) {
+      // Sleek Volume HUD
+      const vW = 240;
+      const vH = 34;
+      const vx = (w - vW) / 2;
+      const vy = h - 54;
+
+      ctx.fillStyle = 'rgba(28, 34, 46, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(vx, vy, vW, vH, 8);
+      ctx.fill();
+
+      // Speaker icon
+      ctx.font = '16px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.fillText('🔈', vx + 12, vy + 23);
+
+      // Volume bar
+      const barTrackX = vx + 40;
+      const barTrackW = vW - 54;
+      const barTrackY = vy + 12;
+      ctx.fillStyle = '#556075';
+      ctx.fillRect(barTrackX, barTrackY, barTrackW, 10);
+
+      ctx.fillStyle = '#4cd964';
+      ctx.fillRect(barTrackX, barTrackY, barTrackW * this.currentVolume, 10);
+    } else {
+      ctx.font = 'italic 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#888888';
+      ctx.fillText('Press MENU to return  •  Spin wheel for Volume', w / 2, h - 20);
+    }
   }
 }

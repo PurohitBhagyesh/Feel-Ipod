@@ -11,7 +11,6 @@ let headphoneJackPlug, earphoneCableLine;
 let screenTexture, screenRenderer;
 
 // World Coordinates for the Top Headphone Hole & Plug
-// When iPod is scaled to height=2.0 and positioned at y=-0.15:
 const IPOD_OFFSET_Y = -0.15;
 const WHEEL_CENTER_Y = -0.55 + IPOD_OFFSET_Y; // -0.70 (exact geometry center of click wheel)
 const PLUG_HOLE_X = 0;
@@ -31,7 +30,7 @@ function showToast(message) {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove('active');
-  }, 2200);
+  }, 2400);
 }
 
 // --- Initialize Scene ---
@@ -93,6 +92,11 @@ function init() {
   // Audio Sync
   window.addEventListener('ipod-timeupdate', (e) => {
     screenRenderer.setTimeUpdate(e.detail.currentTime, e.detail.duration, e.detail.progress);
+    screenTexture.needsUpdate = true;
+  });
+
+  window.addEventListener('ipod-state-change', () => {
+    screenRenderer.setTrack(audioEngine.getCurrentTrack(), audioEngine.isPlaying);
     screenTexture.needsUpdate = true;
   });
 
@@ -474,7 +478,14 @@ function setupDirectClickWheel() {
       accumulatedAngle = 0;
 
       audioEngine.playWheelClick();
-      screenRenderer.scroll(step);
+
+      // In Now Playing view: wheel controls volume
+      if (screenRenderer.getCurrentView() === 'nowPlaying') {
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        screenRenderer.showVolumeHUD(newVol);
+      } else {
+        screenRenderer.scroll(step);
+      }
       screenTexture.needsUpdate = true;
     }
   });
@@ -498,7 +509,10 @@ function setupDirectClickWheel() {
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
         if (res) {
-          if (res.action === 'playTrack') {
+          if (res.action === 'importMp3') {
+            const fileInput = document.getElementById('mp3-file-input');
+            if (fileInput) fileInput.click();
+          } else if (res.action === 'playTrack') {
             const track = audioEngine.selectTrackById(res.trackId);
             screenRenderer.setTrack(track, true);
           } else if (res.action === 'togglePlay') {
@@ -551,13 +565,18 @@ function setupDirectClickWheel() {
       audioEngine.init();
       audioEngine.playWheelClick();
       const step = e.deltaY > 0 ? 1 : -1;
-      screenRenderer.scroll(step);
+      if (screenRenderer.getCurrentView() === 'nowPlaying') {
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        screenRenderer.showVolumeHUD(newVol);
+      } else {
+        screenRenderer.scroll(step);
+      }
       screenTexture.needsUpdate = true;
     }
   }, { passive: true });
 }
 
-// --- Local MP3 File Import via Drag & Drop or Hidden Input ---
+// --- Local MP3 File Import via Menu, Button, File Input, or Drag & Drop ---
 function setupMP3DropImporter() {
   const fileInput = document.getElementById('mp3-file-input');
 
@@ -569,38 +588,51 @@ function setupMP3DropImporter() {
     e.preventDefault();
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      handleAudioFileImport(files[0]);
+      handleAudioFilesImport(files);
     }
   });
 
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
-        handleAudioFileImport(e.target.files[0]);
+        handleAudioFilesImport(e.target.files);
       }
     });
   }
 }
 
-function handleAudioFileImport(file) {
-  if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|ogg|m4a|aac)$/i)) {
-    showToast("Please drop an audio file (.mp3, .wav, .m4a)");
+function handleAudioFilesImport(files) {
+  if (!files || files.length === 0) return;
+  audioEngine.init();
+
+  const validFiles = Array.from(files).filter(f =>
+    f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i)
+  );
+
+  if (validFiles.length === 0) {
+    showToast("Please select audio files (.mp3, .wav, .m4a)");
     return;
   }
 
-  audioEngine.init();
-  showToast(`Loading: ${file.name}`);
+  showToast(`📥 Importing ${validFiles.length} song${validFiles.length > 1 ? 's' : ''}...`);
 
-  const track = audioEngine.importLocalFile(file);
-  screenRenderer.setTracks(audioEngine.tracks);
+  audioEngine.importAudioFiles(validFiles).then((importedTracks) => {
+    screenRenderer.setTracks(audioEngine.tracks);
+    const firstTrack = importedTracks[0];
 
-  // Play immediately
-  const isPlaying = audioEngine.toggleMusic(true);
-  screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
-  screenRenderer.setTrack(track, isPlaying);
-  screenTexture.needsUpdate = true;
+    // Play immediately
+    audioEngine.selectTrackById(firstTrack.id);
+    const isPlaying = audioEngine.toggleMusic(true);
 
-  showToast(`🎵 Playing: ${track.title}`);
+    screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
+    screenRenderer.setTrack(firstTrack, isPlaying);
+    screenTexture.needsUpdate = true;
+
+    showToast(`🎵 Playing: ${firstTrack.title}`);
+  }).catch((err) => {
+    console.error(err);
+    showToast("Could not import audio files.");
+  });
 }
 
 // --- Main Render & Animation Loop ---
@@ -615,8 +647,8 @@ function animate() {
     headphoneJackPlug.position.y = PLUG_HOVER_Y + Math.sin(t) * 0.015;
   }
 
-  // Update dynamic LCD screen canvas
-  if (screenRenderer.render()) {
+  // Update dynamic LCD screen canvas with live frequency data for equalizer
+  if (screenRenderer.render(audioEngine.getFrequencyData())) {
     screenTexture.needsUpdate = true;
   }
 

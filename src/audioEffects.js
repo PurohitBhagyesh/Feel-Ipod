@@ -1,10 +1,11 @@
-// Web Audio API Sound Generator & Real MP3 Playback Engine for Feel iPod
+// Web Audio API Sound Generator & Real MP3 Playback Engine for iPod Feel Simulator 3D
 
 class iPodAudioEngine {
   constructor() {
     this.ctx = null;
     this.gainNode = null;
     this.analyser = null;
+    this.freqArray = null;
 
     this.isPlaying = false;
     this.isHeadphonesPlugged = false;
@@ -12,7 +13,7 @@ class iPodAudioEngine {
     this.hapticsEnabled = true;
     this.volume = 0.85;
 
-    // Real audio element for user MP3 imports and streaming
+    // Real audio element for user MP3 imports and background playback
     this.audioElement = new Audio();
     this.audioElement.preload = 'auto';
     this.audioElement.crossOrigin = 'anonymous';
@@ -70,10 +71,14 @@ class iPodAudioEngine {
       this.ctx = new AudioCtx();
       this.gainNode = this.ctx.createGain();
       this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 64;
+      this.analyser.smoothingTimeConstant = 0.8;
+      this.freqArray = new Uint8Array(this.analyser.frequencyBinCount);
 
       this.gainNode.connect(this.ctx.destination);
+      this.setupMediaSessionHandlers();
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
@@ -82,7 +87,7 @@ class iPodAudioEngine {
 
   setupAudioListeners() {
     this.audioElement.addEventListener('timeupdate', () => {
-      if (this.audioElement.duration) {
+      if (this.audioElement.duration && !isNaN(this.audioElement.duration)) {
         this.progress = this.audioElement.currentTime / this.audioElement.duration;
         window.dispatchEvent(new CustomEvent('ipod-timeupdate', {
           detail: {
@@ -97,6 +102,81 @@ class iPodAudioEngine {
     this.audioElement.addEventListener('ended', () => {
       this.nextTrack();
     });
+
+    this.audioElement.addEventListener('play', () => {
+      this.isPlaying = true;
+      this.updateMediaSession();
+    });
+
+    this.audioElement.addEventListener('pause', () => {
+      this.isPlaying = false;
+      this.updateMediaSession();
+    });
+  }
+
+  // --- Background Play & System Media Session Support ---
+  setupMediaSessionHandlers() {
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler('play', () => {
+          this.toggleMusic(true);
+          window.dispatchEvent(new CustomEvent('ipod-state-change'));
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          this.toggleMusic(false);
+          window.dispatchEvent(new CustomEvent('ipod-state-change'));
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          this.prevTrack();
+          window.dispatchEvent(new CustomEvent('ipod-state-change'));
+        });
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          this.nextTrack();
+          window.dispatchEvent(new CustomEvent('ipod-state-change'));
+        });
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined && this.audioElement.duration) {
+            this.audioElement.currentTime = details.seekTime;
+          }
+        });
+      } catch (e) {}
+    }
+  }
+
+  updateMediaSession() {
+    if ('mediaSession' in navigator) {
+      const track = this.getCurrentTrack();
+      if (!track) return;
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title,
+        artist: track.artist,
+        album: track.album || "iPod Feel Simulator 3D"
+      });
+      navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
+    }
+  }
+
+  // --- Real-Time Frequency Data for LCD Equalizer ---
+  getFrequencyData() {
+    if (this.analyser && this.isPlaying) {
+      this.analyser.getByteFrequencyData(this.freqArray);
+      let sum = 0;
+      for (let i = 0; i < 16; i++) sum += this.freqArray[i];
+      if (sum > 0) return this.freqArray;
+    }
+
+    // Lively simulated frequency spectrum for synth playback or silent tracks
+    if (this.isPlaying) {
+      const t = Date.now() * 0.007;
+      const fakeData = new Uint8Array(16);
+      for (let i = 0; i < 16; i++) {
+        const v = Math.sin(t * (1.2 + i * 0.28) + i * 0.75) * 0.5 + 0.5;
+        const beat = Math.pow(Math.sin(t * 1.9), 4);
+        fakeData[i] = Math.min(255, Math.floor((v * 0.65 + beat * 0.35) * 235 + 20));
+      }
+      return fakeData;
+    }
+    return null;
   }
 
   // --- Haptic Feedback ---
@@ -106,10 +186,10 @@ class iPodAudioEngine {
     }
   }
 
-  // --- Tactile Sound Effects ---
+  // --- Tactile Synthesized Sound Effects ---
 
   // Mechanical Click Wheel Tick
-  playClick() {
+  playWheelClick() {
     if (!this.soundEnabled) return;
     try {
       this.init();
@@ -138,7 +218,7 @@ class iPodAudioEngine {
     } catch (e) {}
   }
 
-  // Button Press Thump (Menu / Center / Play)
+  // Button Press Thump (Select / Menu / Play)
   playButtonPress() {
     if (!this.soundEnabled) return;
     try {
@@ -162,7 +242,7 @@ class iPodAudioEngine {
     } catch (e) {}
   }
 
-  // 1.8-inch Hard Drive Spin-Up Spool
+  // 1.8-inch Microdrive Spin-Up Sound
   playDriveSpinUp() {
     if (!this.soundEnabled) return;
     try {
@@ -193,7 +273,7 @@ class iPodAudioEngine {
       this.init();
       const now = this.ctx.currentTime;
 
-      // Contact snap 1 (sleeve entering)
+      // Contact snap 1
       const osc1 = this.ctx.createOscillator();
       const gain1 = this.ctx.createGain();
       osc1.type = "sine";
@@ -206,7 +286,7 @@ class iPodAudioEngine {
       osc1.start(now);
       osc1.stop(now + 0.02);
 
-      // Final lock click (tip locking into spring contact)
+      // Final lock click
       const osc2 = this.ctx.createOscillator();
       const gain2 = this.ctx.createGain();
       const filter2 = this.ctx.createBiquadFilter();
@@ -253,73 +333,78 @@ class iPodAudioEngine {
     } catch (e) {}
   }
 
-  // --- Headphone Plug State Management ---
   setHeadphonesPlugged(plugged) {
     this.isHeadphonesPlugged = plugged;
     if (plugged) {
       this.playPlugIn();
     } else {
       this.playUnplug();
-      // Authentic iPod behavior: unplugging headphones pauses music!
+      // Unplugging headphones automatically pauses music
       if (this.isPlaying) {
         this.toggleMusic(false);
       }
     }
   }
 
-  // --- User MP3 & Audio File Import ---
-  async importAudioFile(file) {
+  // --- Multiple & Single Audio File Import ---
+  async importAudioFiles(files) {
     this.init();
-    try {
+    const importedList = [];
+
+    for (const file of files) {
       const url = URL.createObjectURL(file);
-      
-      // Clean display title from filename
       let title = file.name.replace(/\.[^/.]+$/, "");
       let artist = "Imported Audio";
-      
+
       if (title.includes(" - ")) {
         const parts = title.split(" - ");
         artist = parts[0].trim();
         title = parts.slice(1).join(" - ").trim();
       }
 
-      // Read audio duration
       const tempAudio = new Audio(url);
       await new Promise((resolve) => {
         tempAudio.addEventListener('loadedmetadata', resolve, { once: true });
         tempAudio.addEventListener('error', resolve, { once: true });
-        setTimeout(resolve, 1500); // fallback timeout
+        setTimeout(resolve, 800);
       });
 
       const totalSec = Math.round(tempAudio.duration) || 210;
       const mins = Math.floor(totalSec / 60);
       const secs = ('0' + (totalSec % 60)).slice(-2);
-      const durationStr = `${mins}:${secs}`;
 
-      const newTrack = {
-        id: `custom-${Date.now()}`,
+      const track = {
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         title: title,
         artist: artist,
-        album: "My Music",
-        duration: durationStr,
+        album: "My Imported MP3s",
+        duration: `${mins}:${secs}`,
         durationSec: totalSec,
         url: url,
         isCustom: true
       };
 
-      // Add to beginning of library
-      this.tracks.unshift(newTrack);
+      this.tracks.unshift(track);
+      importedList.push(track);
+    }
+
+    if (importedList.length > 0) {
       this.currentTrackIndex = 0;
       this.progress = 0;
-
       this.playDriveSpinUp();
-      this.loadTrack(newTrack);
-
-      return newTrack;
-    } catch (err) {
-      console.error("Audio import error:", err);
-      throw err;
+      this.loadTrack(importedList[0]);
     }
+
+    return importedList;
+  }
+
+  // Alias for single file import
+  async importAudioFile(file) {
+    return (await this.importAudioFiles([file]))[0];
+  }
+
+  importLocalFile(file) {
+    return this.importAudioFile(file);
   }
 
   // --- Track Playback ---
@@ -329,14 +414,16 @@ class iPodAudioEngine {
       this.audioElement.src = track.url;
       this.audioElement.currentTime = 0;
 
-      // Connect media element source if needed
+      // Connect media element source to Web Audio analyser
       if (!this.mediaSourceNode && this.ctx) {
         try {
           this.mediaSourceNode = this.ctx.createMediaElementSource(this.audioElement);
-          this.mediaSourceNode.connect(this.gainNode);
+          this.mediaSourceNode.connect(this.analyser);
+          this.analyser.connect(this.gainNode);
         } catch (e) {}
       }
     }
+    this.updateMediaSession();
   }
 
   toggleMusic(forceState = null) {
@@ -366,6 +453,7 @@ class iPodAudioEngine {
       }
     }
 
+    this.updateMediaSession();
     return this.isPlaying;
   }
 
@@ -421,19 +509,19 @@ class iPodAudioEngine {
   }
 
   getCurrentTrack() {
-    return this.tracks[this.currentTrackIndex];
+    return this.tracks[this.currentTrackIndex] || this.tracks[0];
   }
 
   setVolume(vol) {
-    this.volume = Math.max(0, Math.min(1, vol));
-    if (this.gainNode) {
+    this.volume = Math.max(0, Math.min(1.0, vol));
+    if (this.gainNode && this.ctx) {
       this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
     }
     this.audioElement.volume = this.volume;
     return this.volume;
   }
 
-  // --- Retro Lo-Fi Chord Synth Fallback (when no MP3 loaded) ---
+  // --- Retro Lo-Fi Chord Synth Fallback (when no MP3 is imported) ---
   startSynthPlayback() {
     if (this.musicInterval) clearInterval(this.musicInterval);
     const chordNotes = [
@@ -459,12 +547,12 @@ class iPodAudioEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
 
         osc.connect(gain);
-        gain.connect(this.gainNode || this.ctx.destination);
+        gain.connect(this.analyser || this.gainNode || this.ctx.destination);
         osc.start(now);
         osc.stop(now + 1.8);
       });
 
-      // Bass
+      // Bass note
       const bassOsc = this.ctx.createOscillator();
       const bassGain = this.ctx.createGain();
       bassOsc.type = "sine";
@@ -472,7 +560,7 @@ class iPodAudioEngine {
       bassGain.gain.setValueAtTime(0.08 * this.volume, now);
       bassGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
       bassOsc.connect(bassGain);
-      bassGain.connect(this.gainNode || this.ctx.destination);
+      bassGain.connect(this.analyser || this.gainNode || this.ctx.destination);
       bassOsc.start(now);
       bassOsc.stop(now + 1.5);
 
