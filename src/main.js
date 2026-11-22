@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { iPodScreenRenderer } from './ipodScreen.js';
 import { audioEngine } from './audioEffects.js';
+import { saveCustomBackground, getCustomBackground, clearCustomBackground } from './db.js';
 
 // --- State & Variables ---
 let scene, camera, renderer, controls;
@@ -308,21 +309,21 @@ function updateCameraFraming() {
 
   if (aspect < 0.65) {
     // Tall portrait smartphones (iPhone, Pixel, Galaxy):
-    // Pod fills ~76% of screen width and ~60% of screen height for a tactile, prominent presence
-    z = Math.min(4.30, Math.max(4.05, 1.90 / aspect));
-    y = -0.08;
+    // Pod brought closer to appear tactile, large, sharp, and prominent with clean clearance
+    z = Math.min(3.85, Math.max(3.40, 1.62 / aspect));
+    y = -0.04;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = Math.min(4.65, Math.max(4.25, 2.30 / aspect));
-    y = -0.08;
+    z = Math.min(4.45, Math.max(3.90, 2.05 / aspect));
+    y = -0.06;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
-    z = 4.85;
-    y = -0.09;
+    z = 4.65;
+    y = -0.08;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
     // Generous ~110px-120px clearance between bottom of pod and bottom dock
-    z = 4.80;
+    z = 4.75;
     y = -0.10;
   }
 
@@ -524,6 +525,14 @@ function createHeadphoneJackAssembly() {
   });
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
+
+  // 15. Invisible Tactile Hit Box Proxy for High-Precision Mobile & Touch Detection
+  const hitProxyGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.95, 16);
+  const hitProxyMat = new THREE.MeshBasicMaterial({ visible: false });
+  const hitProxy = new THREE.Mesh(hitProxyGeo, hitProxyMat);
+  hitProxy.name = 'plugHitProxy';
+  hitProxy.position.y = 0.05;
+  headphoneJackPlug.add(hitProxy);
 
   // Position hovering directly above top opening
   headphoneJackPlug.position.set(PLUG_HOLE_X, PLUG_HOVER_Y, PLUG_HOLE_Z);
@@ -834,35 +843,50 @@ function toggleHeadphonePlug(forceState = null) {
   animatePlugStep();
 }
 
-// Setup Plug Interaction
+// Setup Plug Interaction (Optimized for Mobile Touch & Desktop Pointer Clicks)
 function setupPlugInteraction() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
+  let pointerDownPos = { x: 0, y: 0 };
+  let isCandidate = false;
 
-  window.addEventListener('click', (e) => {
+  window.addEventListener('pointerdown', (e) => {
     // Ignore clicks on HTML navigation / dock / modals
-    if (e.target.closest('#bottom-dock') || e.target.closest('.bottom-dock') || e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+    if (e.target.closest('#bottom-dock') || e.target.closest('.bottom-dock') || e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud') || e.target.closest('#immersive-modal')) {
+      isCandidate = false;
       return;
     }
+    pointerDownPos = { x: e.clientX, y: e.clientY };
+    isCandidate = true;
+  });
+
+  window.addEventListener('pointerup', (e) => {
+    if (!isCandidate) return;
+    isCandidate = false;
+
+    const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+    if (moveDist > 14) return; // Discard drags or camera rotations
 
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    // Hit against the plug
-    const plugHits = raycaster.intersectObjects(headphoneJackPlug.children, true);
-    if (plugHits.length > 0) {
-      audioEngine.init();
-      toggleHeadphonePlug();
-      return;
+    // Hit against the plug or its hit proxy
+    if (headphoneJackPlug) {
+      const plugHits = raycaster.intersectObjects(headphoneJackPlug.children, true);
+      if (plugHits.length > 0) {
+        audioEngine.init();
+        toggleHeadphonePlug();
+        return;
+      }
     }
 
-    // Hit against the top opening of the MP3 player (y > 0.65 in world coordinates)
+    // Hit against the top opening of the MP3 player (y > 0.58 in world coordinates)
     if (ipodGroup) {
       const ipodHits = raycaster.intersectObjects(ipodGroup.children, true);
       if (ipodHits.length > 0) {
         const hit = ipodHits[0];
-        if (hit.point.y > 0.65 && Math.abs(hit.point.x) < 0.25) {
+        if (hit.point.y > 0.58 && Math.abs(hit.point.x) < 0.35) {
           audioEngine.init();
           toggleHeadphonePlug();
         }
@@ -1366,16 +1390,17 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
   });
 
-  // Custom Background Wallpaper (Supports Images & Videos)
+  // Custom Background Wallpaper (Supports Images & Videos with permanent IndexedDB persistence)
   const bgInput = document.getElementById('bg-file-input');
   const bgVideo = document.getElementById('bg-video');
 
-  bgInput.addEventListener('change', (e) => {
+  bgInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (file.type.startsWith('video/')) {
       // Background Video (mp4, webm, etc.)
+      await saveCustomBackground(file, 'video');
       const videoUrl = URL.createObjectURL(file);
       document.body.style.backgroundImage = 'none';
       if (bgVideo) {
@@ -1386,29 +1411,28 @@ function setupSettingsModal() {
       simulatorSettings.customBg = null;
       simulatorSettings.customVideo = true;
       updateCustomBgState();
-      showToast("Video background set");
+      localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+      showToast("Video background saved permanently");
     } else {
       // Background Image
+      await saveCustomBackground(file, 'image');
       if (bgVideo) {
         bgVideo.pause();
         bgVideo.src = '';
         bgVideo.classList.add('hidden');
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target.result;
-        document.body.style.backgroundImage = `url("${url}")`;
-        simulatorSettings.customBg = url;
-        simulatorSettings.customVideo = false;
-        updateCustomBgState();
-        localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
-        showToast("Background wallpaper updated");
-      };
-      reader.readAsDataURL(file);
+      const imgUrl = URL.createObjectURL(file);
+      document.body.style.backgroundImage = `url("${imgUrl}")`;
+      simulatorSettings.customBg = 'custom_db';
+      simulatorSettings.customVideo = false;
+      updateCustomBgState();
+      localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+      showToast("Background wallpaper saved permanently");
     }
   });
 
-  document.getElementById('btn-reset-bg').addEventListener('click', () => {
+  document.getElementById('btn-reset-bg').addEventListener('click', async () => {
+    await clearCustomBackground();
     document.body.style.backgroundImage = '';
     if (bgVideo) {
       bgVideo.pause();
@@ -1605,6 +1629,22 @@ function setupPhysicalHeadphoneDetection() {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioOutputs = devices.filter(d => d.kind === 'audiooutput' || d.kind === 'audioinput');
 
+      // Check if all device labels are empty strings (iOS Safari privacy protection)
+      const allLabelsEmpty = audioOutputs.length > 0 && audioOutputs.every(d => !d.label || d.label.trim() === "");
+      if (allLabelsEmpty) {
+        // Labels are masked by browser security/privacy policies (e.g. Safari on iOS).
+        // If device count increases above baseline, headphones were plugged in.
+        if (baselineDeviceCount !== null && audioOutputs.length > baselineDeviceCount) {
+          if (!isPluggedIn) {
+            toggleHeadphonePlug(true);
+            showToast("Headphones connected: 3D jack auto-plugged");
+          }
+        }
+        // NEVER auto-unplug when labels are empty, because Safari does not disclose headphone removal
+        // and auto-unplugging causes false disconnect loops!
+        return;
+      }
+
       // Check device labels for headphone keywords (AirPods, wired headphones, Bluetooth, etc.)
       const hasHeadphones = audioOutputs.some(d =>
         /headphone|headset|earbud|airpod|earphone|bluetooth|beats|sony|bose|external/i.test(d.label)
@@ -1627,7 +1667,7 @@ function setupPhysicalHeadphoneDetection() {
           toggleHeadphonePlug(true);
           showToast("Headphones connected: 3D jack auto-plugged");
         }
-      } else {
+      } else if (isInternalSpeakerOnly) {
         if (isPluggedIn && !isInit) {
           toggleHeadphonePlug(false);
           showToast("Headphones removed: 3D jack unplugged");
@@ -1653,8 +1693,8 @@ function setupPhysicalHeadphoneDetection() {
   setInterval(() => checkHeadphones(false), 3500);
 }
 
-// --- Load Saved Settings & Custom Background ---
-function loadSavedSettings() {
+// --- Load Saved Settings & Permanent Custom Background (from IndexedDB) ---
+async function loadSavedSettings() {
   try {
     const saved = localStorage.getItem('mp3_settings');
     if (saved) {
@@ -1668,12 +1708,41 @@ function loadSavedSettings() {
     console.warn(e);
   }
 
-  // Apply custom background only if explicitly saved, otherwise ensure clean studio white
-  if (simulatorSettings.customBg) {
-    document.body.style.backgroundImage = `url("${simulatorSettings.customBg}")`;
-  } else {
-    document.body.style.backgroundImage = '';
+  // Retrieve permanent custom background from IndexedDB
+  try {
+    const storedBg = await getCustomBackground();
+    const bgVideo = document.getElementById('bg-video');
+    if (storedBg && storedBg.blob) {
+      if (storedBg.type === 'video') {
+        const videoUrl = URL.createObjectURL(storedBg.blob);
+        document.body.style.backgroundImage = 'none';
+        if (bgVideo) {
+          bgVideo.src = videoUrl;
+          bgVideo.classList.remove('hidden');
+          bgVideo.play().catch(err => console.log('Autoplay deferred:', err));
+        }
+        simulatorSettings.customBg = null;
+        simulatorSettings.customVideo = true;
+      } else {
+        const imgUrl = URL.createObjectURL(storedBg.blob);
+        document.body.style.backgroundImage = `url("${imgUrl}")`;
+        if (bgVideo) {
+          bgVideo.pause();
+          bgVideo.src = '';
+          bgVideo.classList.add('hidden');
+        }
+        simulatorSettings.customBg = 'custom_db';
+        simulatorSettings.customVideo = false;
+      }
+    } else if (simulatorSettings.customBg && simulatorSettings.customBg.startsWith('data:')) {
+      document.body.style.backgroundImage = `url("${simulatorSettings.customBg}")`;
+    } else {
+      document.body.style.backgroundImage = '';
+    }
+  } catch (e) {
+    console.warn('Error restoring custom background:', e);
   }
+
   updateCustomBgState();
 }
 

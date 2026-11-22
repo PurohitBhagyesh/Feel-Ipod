@@ -11,13 +11,12 @@ export class iPodScreenRenderer {
     this.ctx.imageSmoothingQuality = 'high';
     this.needsUpdate = true;
 
-    // View State: 'root', 'music', 'songs', 'nowPlaying', 'extras', 'settings'
+    // View State: 'root', 'music', 'songs', 'nowPlaying', 'settings'
     this.viewStack = ['root'];
     this.selectedIndices = {
       root: 0,
       music: 0,
       songs: 0,
-      extras: 0,
       settings: 0
     };
 
@@ -83,8 +82,8 @@ export class iPodScreenRenderer {
     if (view === 'root') {
       return [
         { id: 'music', label: 'Music', hasSub: true },
+        { id: 'nowPlaying', label: 'Now Playing', hasSub: false },
         { id: 'import', label: 'Import MP3', hasSub: false },
-        { id: 'extras', label: 'Extras', hasSub: true },
         { id: 'settings', label: 'Settings', hasSub: true },
         { id: 'shuffle', label: 'Shuffle Songs', hasSub: false }
       ];
@@ -94,12 +93,6 @@ export class iPodScreenRenderer {
         { id: 'import', label: 'Import MP3', hasSub: false },
         { id: 'artists', label: 'Artists', hasSub: false },
         { id: 'albums', label: 'Albums', hasSub: false }
-      ];
-    } else if (view === 'extras') {
-      return [
-        { id: 'clock', label: 'Clock', hasSub: false },
-        { id: 'games', label: 'Games', hasSub: false },
-        { id: 'notes', label: 'Notes', hasSub: false }
       ];
     } else if (view === 'settings') {
       return [
@@ -160,9 +153,10 @@ export class iPodScreenRenderer {
       if (item.id === 'music') {
         this.viewStack.push('music');
         this.selectedIndices.music = 0;
-      } else if (item.id === 'extras') {
-        this.viewStack.push('extras');
-        this.selectedIndices.extras = 0;
+      } else if (item.id === 'nowPlaying') {
+        this.viewStack.push('nowPlaying');
+        this.needsUpdate = true;
+        return { action: 'togglePlay' };
       } else if (item.id === 'settings') {
         this.viewStack.push('settings');
         this.selectedIndices.settings = 0;

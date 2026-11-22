@@ -19,58 +19,42 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 - **Comprehensive SEO & Social Metadata**
   - Rich Open Graph (`og:*`), Twitter Cards (`summary_large_image`), and Schema.org JSON-LD structured data for fast indexing and high-fidelity sharing previews.
 
-- **Real Headphone Auto-Connect & Auto-Disconnect**
+- **Seamless Continuous Song Loop & Repeat**
+  - When a song ends, FeelPod 3D automatically advances to the next track or loops back to the start of the playlist in a seamless, uninterrupted repeat cycle.
+
+- **Center Button Play/Pause & Streamlined LCD Menu**
+  - Pressing the Center Button in Now Playing or selecting "Now Playing" from the root menu toggles Play/Pause directly.
+  - LCD root menu has been cleanly streamlined (removing extraneous "Extras" items) for a pure, distraction-free music listening experience.
+
+- **Permanent Local Database Persistence for Songs & Custom Wallpapers (IndexedDB v2)**
+  - Stores imported audio files (`Blob`), ID3 metadata, and extracted cover art permanently in browser local IndexedDB (`FeelPodMusicDB`).
+  - Custom wallpaper images and background videos are stored as raw Blobs in IndexedDB, completely bypassing `localStorage` 5MB quota restrictions and temporary blob URL expirations—persisting reliably across device restarts, reloads, and browser sessions.
+  - Automatic deduplication check prevents the same song from being added multiple times.
+
+- **iPhone Safari & Real Headphone Auto-Connect**
   - Intelligently detects physical audio hardware changes via `navigator.mediaDevices`:
     - **Connect**: When you plug in wired headphones or connect AirPods/Bluetooth, the 3D earphone plug automatically animates into the top jack and initiates playback.
-    - **Remove**: When you disconnect or remove headphones, the 3D plug automatically unplugs and pauses playback immediately.
+    - **Remove**: When headphones are disconnected, the 3D plug automatically unplugs and pauses playback immediately.
+    - **iOS Safari Privacy Protection**: Gracefully handles Safari's privacy-masked blank device labels (`""`), preventing false disconnection loops on iPhone.
 
-- **Mobile Virtual Click Wheel Optimization**
-  - Ergonomic floating HUD on mobile (`140px × 140px`) with touch gesture rotary dragging and tap-zone detection.
-  - Smooth thumb rotation around the wheel with mechanical click audio feedback; tap anywhere on the quadrants to trigger MENU, PLAY/PAUSE, PREV, and NEXT.
+- **Direct Touch-to-Plug 3D Earphone Animation**
+  - Tapping or clicking directly on the 3.5mm headphone plug or top jack opening triggers a smooth cubic-bezier insertion animation with realistic mechanical latching and immediate audio playback.
+  - Features an invisible tactile hit-box proxy cylinder (`R = 0.28, H = 0.95`) ensuring 100% reliable finger tap registration on mobile screens.
 
-- **Direct Files App Audio Import**
-  - File picker explicitly targets audio file extensions (`.mp3, .m4a, .wav, .aac, .flac, .ogg`), bypassing camera/photo prompts on mobile devices and directly opening your device's native Files app.
+- **Transparent Animated Liquid Glass "Wear Headphones" Modal**
+  - Redesigned with Apple-grade frosted liquid glass (`backdrop-filter: blur(40px) saturate(200%)`).
+  - Features a floating headphone emblem with 3 concentric radiating audio ripple waves (`@keyframes ripple-radiate`) expanding outward.
 
-- **Seamless Edge-to-Edge LCD Display (Zero Black Bar)**
-  - LCD screen plane precision-calibrated (0.818 x 0.618 world units) to fill the front casing window seamlessly with zero black gap or dark bezel outline.
-
-- **Studio White Default Aesthetic**
-  - Default background is a pristine Apple design studio white radial backdrop (`#ffffff` fading gently to `#f6f7fa` and `#e8ebf2` at the edges), providing high-end contrast for the 3D player, metallic rim highlights, and soft contact drop shadow.
-
-- **Background Video & Wallpaper Support**
-  - Custom background uploader supports both high-resolution images and live background videos (`.mp4`, `.webm`, `.mov`) playing seamlessly behind the 3D player. Includes an instant Reset to Studio White button.
-
-- **Collapsible Background-Adaptive Liquid Glass Options Dock**
-  - **Studio White Default**: Transparent liquid glass dock with dark slate typography and icons (`#0f172a`) that float cleanly above the studio backdrop.
-  - **Dynamic Wallpaper Adaptation**: When a custom wallpaper or background video is loaded, the dock automatically adapts to dark frosted liquid glass (`rgba(18, 22, 34, 0.74)`) with crisp white/silver text and icons.
-  - Sleek `>` toggle button collapses the dock downward for an uncluttered view, with a floating liquid glass `Controls` pill to expand it back at any time.
-
-- **Background-Blending Settings Modal**
-  - The Settings modal card, rows, and buttons seamlessly blend with whichever background is active (ultra-clean translucent light glass on default studio white, or dark frosted glass on custom wallpapers).
-
-- **Text Size Selector in Settings**
-  - Choose between **Small**, **Medium**, and **Large** text sizes under Preferences in Settings.
-  - Dynamically scales LCD screen typography and menu labels in real-time.
-
-- **Ultra HD Retina LCD Text Quality**
-  - 2x Retina canvas scale (`1024 × 768`) with subpixel antialiasing and high-precision font rendering.
-  - Eliminates all pixelation and blur, rendering text and interface elements in smooth, razor-sharp HD clarity.
-
-- **Generous Pod-to-Dock Spacing & Responsive Auto-Framing**
-  - Camera distance and vertical centering are auto-calibrated to preserve 100px–120px of breathing room between the bottom of the player and the options bar across desktop, widescreen, tablet, and mobile portrait viewports.
-  - Phones feature a prominent, large pod presentation (~76% screen width) that feels tactile and immersive.
+- **Mathematically Aligned Mobile Virtual Click Wheel**
+  - Floating HUD (`160px × 160px` desktop, `124px × 124px` mobile) with exact quadrant positioning (`top/bottom: 50%`, `transform: translate(-50%, -50%)`).
+  - Razor-sharp SVG vector icons for Previous, Next, and Play/Pause, eliminating unicode font misalignment.
+  - Smooth thumb rotation around the wheel with mechanical click audio feedback and tactile tap zones.
 
 - **Permanent Real-Life 3.5mm Plug Tip (White + Light Grey)**
   - 1:1 physical model based on genuine Apple EarPods:
     - Conductor metal (Tip dome, Ring 1, Ring 2, Sleeve) permanently locked to luminous light grey silver chrome (`#f4f6fa` / `#dde2ea`) with dedicated upward fill lighting to prevent any dark shadowing.
     - Crisp pure white Delrin insulator rings (`#ffffff`) flush with the metal cylinder.
     - Locked color state: casing and wheel customizations never alter the plug tip's authentic white + light grey finish.
-
-- **Local Database Persistence & Deduplication (IndexedDB)**
-  - Stores imported audio files (`Blob`), ID3 metadata, and extracted cover art permanently in browser local IndexedDB (`FeelPodMusicDB`).
-  - Songs persist across browser restarts, page refreshes, and tabs without re-uploading.
-  - Automatic deduplication check prevents the same song from being added multiple times.
-  - Starts fresh with authentic "No Music" empty state.
 
 - **Curated Neutral & Premium Pro Color Editions**
   - **Neutral Classics**:

@@ -1134,69 +1134,112 @@ body.has-custom-bg .about-section p {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, #e6e8ec 0%, #d4d7dc 100%);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.8);
+  background: radial-gradient(circle, #e8eaee 0%, #d2d5dc 100%);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.40), inset 0 2px 4px rgba(255, 255, 255, 0.85);
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .vwheel-btn {
   position: absolute;
   background: none;
   border: none;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.70rem;
-  font-weight: 800;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #1e293b;
   cursor: pointer;
-  padding: 8px;
-  transition: transform 0.1s ease, color 0.1s ease;
+  z-index: 2;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .vwheel-btn:active {
   color: #2563eb;
-  transform: scale(0.92);
+  opacity: 0.7;
 }
 
-.vwheel-menu { top: 6px; }
-.vwheel-play { bottom: 6px; }
-.vwheel-prev { left: 6px; }
-.vwheel-next { right: 6px; }
+.vwheel-menu {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.70rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  width: 60px;
+  height: 22px;
+}
+
+.vwheel-play {
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 22px;
+}
+
+.vwheel-prev {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+}
+
+.vwheel-next {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+}
+
+.vwheel-svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
 
 .vwheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 58px;
   height: 58px;
   border-radius: 50%;
   background: #f1f3f7;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95), 0 2px 6px rgba(0, 0, 0, 0.16);
   cursor: pointer;
+  z-index: 3;
   transition: transform 0.1s ease, background-color 0.1s ease;
 }
 
 .vwheel-center:active {
-  background: #e2e8f0;
-  transform: scale(0.94);
+  background: #dbeafe;
+  transform: translate(-50%, -50%) scale(0.95);
 }
 
-/* --- Immersive Audio Modal --- */
+/* --- Animated Transparent Liquid Glass "Wear Headphones" Modal --- */
 .immersive-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 200;
+  z-index: 250;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10, 14, 24, 0.42);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1208,21 +1251,21 @@ body.has-custom-bg .about-section p {
 }
 
 .immersive-card {
-  background: rgba(18, 22, 34, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(36px) saturate(190%);
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
-  border-radius: 24px;
-  padding: 30px 32px;
+  background: rgba(18, 24, 38, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-radius: 28px;
+  padding: 34px 36px 30px;
   width: 90%;
-  max-width: 380px;
+  max-width: 370px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  transform: translateY(22px) scale(0.92);
+  gap: 16px;
+  transform: translateY(24px) scale(0.92);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1230,86 +1273,119 @@ body.has-custom-bg .about-section p {
   transform: translateY(0) scale(1);
 }
 
-.headphone-visual {
+/* Concentric Radiating Audio Ripple Stage */
+.immersive-visual-stage {
+  position: relative;
+  width: 110px;
+  height: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+}
+
+.ripple-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  transform: translate(-50%, -50%) scale(0.6);
+  pointer-events: none;
+  animation: ripple-radiate 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+}
+
+.ripple-ring.r1 {
+  animation-delay: 0s;
+}
+
+.ripple-ring.r2 {
+  animation-delay: 0.9s;
+}
+
+.ripple-ring.r3 {
+  animation-delay: 1.8s;
+}
+
+@keyframes ripple-radiate {
+  0% {
+    transform: translate(-50%, -50%) scale(0.65);
+    opacity: 0.85;
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.65);
+    opacity: 0;
+    border-color: rgba(255, 255, 255, 0.0);
+  }
 }
 
 .headphone-svg-wrapper {
-  width: 56px;
-  height: 56px;
+  position: relative;
+  z-index: 2;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.40);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: pulse-headphone 2s ease-in-out infinite;
+  animation: float-headphone 2.4s ease-in-out infinite;
+}
+
+@keyframes float-headphone {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .headphone-vector {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   color: #ffffff;
-}
-
-.wave {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #94a3b8;
-  animation: wave-pulse 1.4s ease-in-out infinite;
-}
-
-.wave-r {
-  animation-delay: 0.25s;
-}
-
-@keyframes pulse-headphone {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-
-@keyframes wave-pulse {
-  0%, 100% { opacity: 0.25; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.15); color: #e2e8f0; }
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 .immersive-heading {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
 
 .immersive-subtext {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   line-height: 1.45;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .immersive-btn {
   margin-top: 4px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.32);
   color: #ffffff;
-  border-radius: 20px;
-  padding: 10px 30px;
+  border-radius: 22px;
+  padding: 10px 34px;
   font-size: 0.90rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .immersive-btn:hover {
-  background: rgba(255, 255, 255, 0.26);
-  transform: scale(1.02);
+  background: rgba(255, 255, 255, 0.30);
+  transform: scale(1.03);
 }
 
 .immersive-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Minimal Toast */
@@ -1425,6 +1501,31 @@ body.has-custom-bg .about-section p {
   .vwheel-outer {
     width: 124px;
     height: 124px;
+  }
+  .vwheel-menu {
+    top: 6px;
+    font-size: 0.58rem;
+    width: 46px;
+    height: 18px;
+  }
+  .vwheel-play {
+    bottom: 6px;
+    width: 38px;
+    height: 18px;
+  }
+  .vwheel-prev {
+    left: 6px;
+    width: 18px;
+    height: 38px;
+  }
+  .vwheel-next {
+    right: 6px;
+    width: 18px;
+    height: 38px;
+  }
+  .vwheel-svg {
+    width: 14px;
+    height: 14px;
   }
   .vwheel-center {
     width: 44px;

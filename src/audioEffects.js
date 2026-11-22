@@ -68,7 +68,10 @@ class iPodAudioEngine {
     });
 
     this.audioElement.addEventListener('ended', () => {
-      this.nextTrack();
+      // Continuous playback & repeat: seamlessly advance to next song (or loop back to first track)
+      this.isPlaying = true;
+      this.nextTrack(true);
+      window.dispatchEvent(new CustomEvent('ipod-state-change'));
     });
 
     this.audioElement.addEventListener('play', () => {
@@ -593,7 +596,7 @@ class iPodAudioEngine {
     return this.isPlaying;
   }
 
-  nextTrack() {
+  nextTrack(forcePlay = false) {
     this.playButtonPress();
     if (this.tracks.length === 0) return null;
     this.currentTrackIndex = (this.currentTrackIndex + 1) % this.tracks.length;
@@ -601,10 +604,12 @@ class iPodAudioEngine {
     const track = this.getCurrentTrack();
     if (track) {
       this.loadTrack(track);
-      if (this.isPlaying) {
+      if (this.isPlaying || forcePlay) {
+        this.isPlaying = true;
         this.playDriveSpinUp();
         if (track.isCustom && track.url) {
-          this.audioElement.play().catch(() => {});
+          this.audioElement.currentTime = 0;
+          this.audioElement.play().catch((e) => console.log('Next track playback deferred:', e));
         } else {
           this.startSynthPlayback();
         }
@@ -613,7 +618,7 @@ class iPodAudioEngine {
     return track;
   }
 
-  prevTrack() {
+  prevTrack(forcePlay = false) {
     this.playButtonPress();
     if (this.tracks.length === 0) return null;
     this.currentTrackIndex = (this.currentTrackIndex - 1 + this.tracks.length) % this.tracks.length;
@@ -621,10 +626,12 @@ class iPodAudioEngine {
     const track = this.getCurrentTrack();
     if (track) {
       this.loadTrack(track);
-      if (this.isPlaying) {
+      if (this.isPlaying || forcePlay) {
+        this.isPlaying = true;
         this.playDriveSpinUp();
         if (track.isCustom && track.url) {
-          this.audioElement.play().catch(() => {});
+          this.audioElement.currentTime = 0;
+          this.audioElement.play().catch((e) => console.log('Prev track playback deferred:', e));
         } else {
           this.startSynthPlayback();
         }

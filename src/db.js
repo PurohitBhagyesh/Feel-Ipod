@@ -1,7 +1,8 @@
-// --- FeelPod Music Local Database (IndexedDB) ---
+// --- FeelPod Music & Media Local Database (IndexedDB) ---
 const DB_NAME = 'FeelPodMusicDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'tracks';
+const SETTINGS_STORE = 'settings';
 
 let dbPromise = null;
 
@@ -17,6 +18,9 @@ export function openMusicDB() {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'uniqueKey' });
         store.createIndex('dateAdded', 'dateAdded', { unique: false });
         store.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+        db.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
       }
     };
 
@@ -120,4 +124,61 @@ export async function deleteTrack(uniqueKey) {
  */
 export function getFileUniqueKey(file) {
   return `${file.name.trim().toLowerCase()}_${file.size}_${file.lastModified || 0}`;
+}
+
+/**
+ * Stores custom background wallpaper (image Blob or video Blob) in IndexedDB
+ */
+export async function saveCustomBackground(blob, type = 'image') {
+  try {
+    const db = await openMusicDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+      const store = tx.objectStore(SETTINGS_STORE);
+      const req = store.put({ key: 'custom_bg', blob, type, timestamp: Date.now() });
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error('saveCustomBackground error:', err);
+    return false;
+  }
+}
+
+/**
+ * Retrieves the stored custom background from IndexedDB
+ */
+export async function getCustomBackground() {
+  try {
+    const db = await openMusicDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(SETTINGS_STORE, 'readonly');
+      const store = tx.objectStore(SETTINGS_STORE);
+      const req = store.get('custom_bg');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    console.warn('getCustomBackground error:', err);
+    return null;
+  }
+}
+
+/**
+ * Removes custom background from IndexedDB
+ */
+export async function clearCustomBackground() {
+  try {
+    const db = await openMusicDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+      const store = tx.objectStore(SETTINGS_STORE);
+      const req = store.delete('custom_bg');
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    });
+  } catch (err) {
+    console.warn('clearCustomBackground error:', err);
+    return false;
+  }
 }

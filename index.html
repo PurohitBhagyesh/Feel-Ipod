@@ -385,29 +385,42 @@
   <!-- On-Screen Virtual Click Wheel (Toggleable via Settings) -->
   <div id="virtual-wheel-container" class="virtual-wheel-hud hidden">
     <div class="vwheel-outer" id="vwheel-outer">
-      <button class="vwheel-btn vwheel-menu" id="vbtn-menu">MENU</button>
-      <button class="vwheel-btn vwheel-prev" id="vbtn-prev">|◀◀</button>
-      <button class="vwheel-btn vwheel-next" id="vbtn-next">▶▶|</button>
-      <button class="vwheel-btn vwheel-play" id="vbtn-play">▶❚❚</button>
-      <div class="vwheel-center" id="vbtn-center"></div>
+      <button class="vwheel-btn vwheel-menu" id="vbtn-menu" aria-label="Menu">MENU</button>
+      <button class="vwheel-btn vwheel-prev" id="vbtn-prev" aria-label="Previous track" title="Previous">
+        <svg class="vwheel-svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 6h2.2v12H6zm3.5 6l9 6V6z"/>
+        </svg>
+      </button>
+      <button class="vwheel-btn vwheel-next" id="vbtn-next" aria-label="Next track" title="Next">
+        <svg class="vwheel-svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5.5 18l9-6-9-6v12zM15.8 6v12H18V6h-2.2z"/>
+        </svg>
+      </button>
+      <button class="vwheel-btn vwheel-play" id="vbtn-play" aria-label="Play or Pause" title="Play/Pause">
+        <svg class="vwheel-svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7 6v12l5.5-6L7 6zm7 0h2v12h-2V6zm3.5 0h2v12h-2V6z"/>
+        </svg>
+      </button>
+      <div class="vwheel-center" id="vbtn-center" aria-label="Select"></div>
     </div>
   </div>
 
-  <!-- YouTube Style "Wear Headphones" Immersive Audio Popup -->
+  <!-- Animated Transparent Liquid Glass "Wear Headphones" Immersive Audio Popup -->
   <div id="immersive-modal" class="immersive-modal">
     <div class="immersive-card">
-      <div class="headphone-visual">
-        <span class="wave wave-l">((</span>
+      <div class="immersive-visual-stage">
+        <div class="ripple-ring r1"></div>
+        <div class="ripple-ring r2"></div>
+        <div class="ripple-ring r3"></div>
         <div class="headphone-svg-wrapper">
-          <svg class="headphone-vector" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg class="headphone-vector" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
             <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
           </svg>
         </div>
-        <span class="wave wave-r">))</span>
       </div>
       <h2 class="immersive-heading">Wear Headphones</h2>
-      <p class="immersive-subtext">For the authentic immersive 3D audio experience, plug in your headphones.</p>
+      <p class="immersive-subtext">For authentic spatial stereo sound and physical analog immersion, plug in your headphones.</p>
       <button id="immersive-btn" class="immersive-btn">Continue</button>
     </div>
   </div>
