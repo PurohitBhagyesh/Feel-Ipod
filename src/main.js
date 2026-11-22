@@ -33,8 +33,15 @@ const simulatorSettings = {
   sensitivity: 1.0,
   virtualWheel: false,
   autoPlug: true,
-  customBg: null
+  textSize: 'medium',
+  customBg: null,
+  customVideo: false
 };
+
+function updateCustomBgState() {
+  const hasBg = Boolean(simulatorSettings.customBg || simulatorSettings.customVideo);
+  document.body.classList.toggle('has-custom-bg', hasBg);
+}
 
 // Theme Presets: Curated Neutral Classics & Luxury Premium Editions
 const THEME_PRESETS = {
@@ -264,6 +271,9 @@ function init() {
 // --- Dedicated Guaranteed-Visible LCD Screen Mesh ---
 function createDedicatedScreen() {
   screenRenderer = new iPodScreenRenderer();
+  if (simulatorSettings.textSize) {
+    screenRenderer.setTextSize(simulatorSettings.textSize);
+  }
   screenRenderer.setTracks(audioEngine.tracks);
   screenRenderer.render();
 
@@ -1306,6 +1316,28 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
   });
 
+  // Text Size (Small, Medium, Large)
+  const textSizeBtns = document.querySelectorAll('#text-size-control .seg-btn');
+  textSizeBtns.forEach(btn => {
+    if (btn.dataset.size === (simulatorSettings.textSize || 'medium')) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+    btn.addEventListener('click', () => {
+      textSizeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const size = btn.dataset.size;
+      simulatorSettings.textSize = size;
+      if (screenRenderer) {
+        screenRenderer.setTextSize(size);
+        if (screenTexture) screenTexture.needsUpdate = true;
+      }
+      localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+      showToast(`Text size: ${size.charAt(0).toUpperCase() + size.slice(1)}`);
+    });
+  });
+
   // Sensitivity
   const rngSensitivity = document.getElementById('setting-sensitivity');
   const valSensitivity = document.getElementById('val-sensitivity');
@@ -1353,6 +1385,7 @@ function setupSettingsModal() {
       }
       simulatorSettings.customBg = null;
       simulatorSettings.customVideo = true;
+      updateCustomBgState();
       showToast("Video background set");
     } else {
       // Background Image
@@ -1367,6 +1400,7 @@ function setupSettingsModal() {
         document.body.style.backgroundImage = `url("${url}")`;
         simulatorSettings.customBg = url;
         simulatorSettings.customVideo = false;
+        updateCustomBgState();
         localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
         showToast("Background wallpaper updated");
       };
@@ -1383,6 +1417,7 @@ function setupSettingsModal() {
     }
     simulatorSettings.customBg = null;
     simulatorSettings.customVideo = false;
+    updateCustomBgState();
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
     showToast("Background reset to Studio White");
   });
@@ -1639,6 +1674,7 @@ function loadSavedSettings() {
   } else {
     document.body.style.backgroundImage = '';
   }
+  updateCustomBgState();
 }
 
 // --- Local MP3 File Import via Menu, Button, File Input, or Drag & Drop ---

@@ -2,10 +2,13 @@
 
 export class iPodScreenRenderer {
   constructor() {
+    this.dpr = 2; // HD 2x Retina scale for ultra-smooth crystal-clear typography & graphics
     this.canvas = document.createElement('canvas');
-    this.canvas.width = 512;
-    this.canvas.height = 384;
+    this.canvas.width = 512 * this.dpr;
+    this.canvas.height = 384 * this.dpr;
     this.ctx = this.canvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
     this.needsUpdate = true;
 
     // View State: 'root', 'music', 'songs', 'nowPlaying', 'extras', 'settings'
@@ -17,6 +20,9 @@ export class iPodScreenRenderer {
       extras: 0,
       settings: 0
     };
+
+    this.textSize = 'medium'; // 'small' | 'medium' | 'large'
+    this.textSizeScale = 1.0;
 
     this.batteryLevel = 0.88;
     this.isPlaying = false;
@@ -36,6 +42,25 @@ export class iPodScreenRenderer {
       currentTimeStr: "0:00",
       progress: 0.0
     };
+  }
+
+  setTextSize(size) {
+    this.textSize = size;
+    if (size === 'small') {
+      this.textSizeScale = 0.88;
+    } else if (size === 'large') {
+      this.textSizeScale = 1.15;
+    } else {
+      this.textSizeScale = 1.0;
+    }
+    this.needsUpdate = true;
+  }
+
+  getFont(spec) {
+    return spec.replace(/(\d+)px/, (_, px) => {
+      const scaled = Math.round(parseInt(px, 10) * this.textSizeScale);
+      return `${scaled}px`;
+    });
   }
 
   setTracks(tracks) {
@@ -211,8 +236,14 @@ export class iPodScreenRenderer {
     if (!this.needsUpdate && this.volumeHUDTimer <= 0) return false;
 
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = 512;
+    const h = 384;
+
+    // Clear full physical canvas buffer at HD 2x Retina resolution
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    ctx.save();
+    ctx.scale(this.dpr, this.dpr);
 
     // 1. Crisp authentic white LCD display
     ctx.fillStyle = '#ffffff';
@@ -233,6 +264,8 @@ export class iPodScreenRenderer {
     if (this.volumeHUDTimer > 0) {
       this.volumeHUDTimer--;
     }
+
+    ctx.restore();
 
     this.needsUpdate = false;
     return true;
@@ -285,7 +318,7 @@ export class iPodScreenRenderer {
     else if (view === 'extras') title = 'Extras';
     else if (view === 'settings') title = 'Settings';
 
-    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = this.getFont('bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
     ctx.textAlign = 'center';
     ctx.fillStyle = '#111111';
     ctx.fillText(title, w / 2, 31);
@@ -323,20 +356,20 @@ export class iPodScreenRenderer {
 
       // Label text
       ctx.textAlign = 'left';
-      ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = this.getFont('bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = isSelected ? '#ffffff' : '#000000';
       ctx.fillText(item.label, 20, y + 33);
 
       // Chevron arrow (›) on right
       if (item.hasSub) {
         ctx.textAlign = 'right';
-        ctx.font = 'bold 24px sans-serif';
+        ctx.font = this.getFont('bold 24px sans-serif');
         ctx.fillStyle = isSelected ? '#ffffff' : '#555555';
         ctx.fillText('›', w - 20, y + 33);
       } else if (item.id === 'import') {
         // Clean + indicator for importing
         ctx.textAlign = 'right';
-        ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.font = this.getFont('bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
         ctx.fillStyle = isSelected ? '#ffffff' : '#68758d';
         ctx.fillText('+', w - 20, y + 33);
       }
@@ -358,12 +391,12 @@ export class iPodScreenRenderer {
     items.forEach((item, idx) => {
       const y = startY + idx * lineHeight;
       ctx.textAlign = 'left';
-      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = this.getFont('bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = '#222222';
       ctx.fillText(item.label, 28, y);
 
       ctx.textAlign = 'right';
-      ctx.font = '500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = this.getFont('500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = '#666666';
       ctx.fillText(item.val, w - 28, y);
 
@@ -373,7 +406,7 @@ export class iPodScreenRenderer {
     });
 
     ctx.textAlign = 'center';
-    ctx.font = 'italic 16px sans-serif';
+    ctx.font = this.getFont('italic 16px sans-serif');
     ctx.fillStyle = '#888888';
     ctx.fillText('Press MENU to return', w / 2, h - 22);
   }
@@ -436,15 +469,15 @@ export class iPodScreenRenderer {
   drawNowPlaying(ctx, w, h, freqData) {
     if (!this.currentTrack) {
       ctx.textAlign = 'center';
-      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = this.getFont('bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = '#1e293b';
       ctx.fillText('No Music', w / 2, 130);
 
-      ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = this.getFont('16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       ctx.fillStyle = '#64748b';
       ctx.fillText('Select Import MP3 to add songs', w / 2, 165);
 
-      ctx.font = 'italic 13px -apple-system, sans-serif';
+      ctx.font = this.getFont('italic 13px -apple-system, sans-serif');
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Stored locally in your browser', w / 2, 205);
       return;
@@ -486,25 +519,25 @@ export class iPodScreenRenderer {
     // Track Counter (e.g. "1 of 4")
     const trackIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
     const countStr = trackIndex !== -1 ? `${trackIndex + 1} of ${this.tracks.length}` : `1 of ${this.tracks.length || 1}`;
-    ctx.font = 'bold 13px -apple-system, sans-serif';
+    ctx.font = this.getFont('bold 13px -apple-system, sans-serif');
     ctx.fillStyle = '#8e99a8';
     ctx.textAlign = 'left';
     ctx.fillText(countStr, textX, 78);
 
     // Track Title
-    ctx.font = 'bold 22px -apple-system, sans-serif';
+    ctx.font = this.getFont('bold 22px -apple-system, sans-serif');
     ctx.fillStyle = '#000000';
     const title = this.currentTrack.title.length > 18 ? this.currentTrack.title.slice(0, 16) + '...' : this.currentTrack.title;
     ctx.fillText(title, textX, 104);
 
     // Artist
-    ctx.font = '18px -apple-system, sans-serif';
+    ctx.font = this.getFont('18px -apple-system, sans-serif');
     ctx.fillStyle = '#333333';
     const artist = this.currentTrack.artist.length > 20 ? this.currentTrack.artist.slice(0, 18) + '...' : this.currentTrack.artist;
     ctx.fillText(artist, textX, 130);
 
     // Album
-    ctx.font = '15px -apple-system, sans-serif';
+    ctx.font = this.getFont('15px -apple-system, sans-serif');
     ctx.fillStyle = '#666666';
     const album = this.currentTrack.album || "FeelPod 3D";
     const albumShort = album.length > 22 ? album.slice(0, 20) + '...' : album;
@@ -522,7 +555,7 @@ export class iPodScreenRenderer {
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 11px sans-serif';
+    ctx.font = this.getFont('bold 11px sans-serif');
     ctx.fillStyle = '#55667e';
     ctx.textAlign = 'center';
     ctx.fillText('MP3 • 320 KBPS', textX + badgeW / 2, badgeY + 14);
@@ -603,7 +636,7 @@ export class iPodScreenRenderer {
     ctx.stroke();
 
     // Elapsed / Remaining Time
-    ctx.font = '16px -apple-system, sans-serif';
+    ctx.font = this.getFont('16px -apple-system, sans-serif');
     ctx.fillStyle = '#555555';
     ctx.textAlign = 'left';
     ctx.fillText(this.currentTrack.currentTimeStr || "0:00", barX, barY + 34);
@@ -648,7 +681,7 @@ export class iPodScreenRenderer {
       ctx.fillStyle = '#4cd964';
       ctx.fillRect(barTrackX, barTrackY, barTrackW * this.currentVolume, 10);
     } else {
-      ctx.font = 'italic 15px sans-serif';
+      ctx.font = this.getFont('italic 15px sans-serif');
       ctx.textAlign = 'center';
       ctx.fillStyle = '#888888';
       ctx.fillText('Press MENU to return  •  Spin wheel for Volume', w / 2, h - 20);

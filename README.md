@@ -40,9 +40,21 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 - **Background Video & Wallpaper Support**
   - Custom background uploader supports both high-resolution images and live background videos (`.mp4`, `.webm`, `.mov`) playing seamlessly behind the 3D player. Includes an instant Reset to Studio White button.
 
-- **Collapsible Apple Liquid Glass Options Dock**
-  - Sleek `>` toggle button in the options bar collapses the dock downward for an uncluttered, distraction-free view.
-  - A discreet floating glass `Controls` pill appears at the bottom center to smoothly slide the options bar back into view.
+- **Collapsible Background-Adaptive Liquid Glass Options Dock**
+  - **Studio White Default**: Transparent liquid glass dock with dark slate typography and icons (`#0f172a`) that float cleanly above the studio backdrop.
+  - **Dynamic Wallpaper Adaptation**: When a custom wallpaper or background video is loaded, the dock automatically adapts to dark frosted liquid glass (`rgba(18, 22, 34, 0.74)`) with crisp white/silver text and icons.
+  - Sleek `>` toggle button collapses the dock downward for an uncluttered view, with a floating liquid glass `Controls` pill to expand it back at any time.
+
+- **Background-Blending Settings Modal**
+  - The Settings modal card, rows, and buttons seamlessly blend with whichever background is active (ultra-clean translucent light glass on default studio white, or dark frosted glass on custom wallpapers).
+
+- **Text Size Selector in Settings**
+  - Choose between **Small**, **Medium**, and **Large** text sizes under Preferences in Settings.
+  - Dynamically scales LCD screen typography and menu labels in real-time.
+
+- **Ultra HD Retina LCD Text Quality**
+  - 2x Retina canvas scale (`1024 × 768`) with subpixel antialiasing and high-precision font rendering.
+  - Eliminates all pixelation and blur, rendering text and interface elements in smooth, razor-sharp HD clarity.
 
 - **Generous Pod-to-Dock Spacing & Responsive Auto-Framing**
   - Camera distance and vertical centering are auto-calibrated to preserve 100px–120px of breathing room between the bottom of the player and the options bar across desktop, widescreen, tablet, and mobile portrait viewports.
