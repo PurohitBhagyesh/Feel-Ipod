@@ -10,6 +10,251 @@
   <!-- 3D WebGL Canvas -->
   <div id="canvas-container"></div>
 
+  <!-- Top Glassmorphic Navigation Bar -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <span class="nav-logo">📻</span>
+      <span class="nav-title">MP3 Player 3D</span>
+      <span id="nav-track-badge" class="track-badge hidden">
+        <span class="mini-eq-bars">
+          <i></i><i></i><i></i>
+        </span>
+        <span id="nav-track-title">Playing</span>
+      </span>
+    </div>
+
+    <div class="nav-actions">
+      <!-- Color Customizer Button -->
+      <button id="btn-theme" class="nav-pill-btn" title="Customize Colors & Theme">
+        <span class="btn-icon">🎨</span>
+        <span class="btn-label">Color</span>
+      </button>
+
+      <!-- Import MP3 Button -->
+      <button id="btn-import-top" class="nav-pill-btn" title="Import Audio Files">
+        <span class="btn-icon">📁</span>
+        <span class="btn-label">Import</span>
+      </button>
+
+      <!-- Earphone Jack Plug Toggle Button -->
+      <button id="btn-plug-toggle" class="nav-pill-btn" title="Connect / Disconnect Earphones">
+        <span class="btn-icon">🎧</span>
+        <span class="btn-label" id="plug-status-label">Plug In</span>
+      </button>
+
+      <!-- Settings Button -->
+      <button id="btn-settings" class="nav-pill-btn" title="Simulator Settings">
+        <span class="btn-icon">⚙️</span>
+        <span class="btn-label">Settings</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Color Customizer Dropdown / Palette Tray -->
+  <div id="theme-tray" class="theme-tray hidden">
+    <div class="tray-header">
+      <span class="tray-title">🎨 Player & Jack Finish</span>
+      <button id="btn-close-theme" class="tray-close" aria-label="Close palette">✕</button>
+    </div>
+    
+    <div class="theme-presets-row">
+      <span class="tray-sublabel">Presets:</span>
+      <div class="preset-swatches">
+        <button class="color-swatch active" data-theme="white" title="Classic White" style="background: #ffffff; border: 1px solid #d1d5db;"></button>
+        <button class="color-swatch" data-theme="stealth" title="Stealth Black" style="background: #18191c;"></button>
+        <button class="color-swatch" data-theme="u2" title="U2 Edition (Black & Red)" style="background: linear-gradient(135deg, #111215 50%, #dc2626 50%);"></button>
+        <button class="color-swatch" data-theme="silver" title="Silver Aluminium" style="background: #d1d5db;"></button>
+        <button class="color-swatch" data-theme="spacegray" title="Space Gray" style="background: #4b5563;"></button>
+        <button class="color-swatch" data-theme="blue" title="Pacific Blue" style="background: #2563eb;"></button>
+        <button class="color-swatch" data-theme="pink" title="Hot Pink" style="background: #ec4899;"></button>
+        <button class="color-swatch" data-theme="mint" title="Sage Mint" style="background: #10b981;"></button>
+        <button class="color-swatch" data-theme="gold" title="Sunset Gold" style="background: #f59e0b;"></button>
+        <button class="color-swatch" data-theme="purple" title="Royal Purple" style="background: #8b5cf6;"></button>
+      </div>
+    </div>
+
+    <div class="custom-color-controls">
+      <div class="color-control-item">
+        <label for="casing-color-picker">Casing Color:</label>
+        <div class="picker-wrapper">
+          <input type="color" id="casing-color-picker" value="#ffffff" />
+          <span id="casing-color-hex" class="color-hex-val">#FFFFFF</span>
+        </div>
+      </div>
+      <div class="color-control-item">
+        <label for="wheel-color-picker">Wheel Color:</label>
+        <div class="picker-wrapper">
+          <input type="color" id="wheel-color-picker" value="#e4e6ea" />
+          <span id="wheel-color-hex" class="color-hex-val">#E4E6EA</span>
+        </div>
+      </div>
+      <div class="color-control-item">
+        <label for="jack-color-picker">Jack & Cable:</label>
+        <div class="picker-wrapper">
+          <input type="color" id="jack-color-picker" value="#ffffff" />
+          <span id="jack-color-hex" class="color-hex-val">#FFFFFF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">⚙️ Simulator Settings</h2>
+        <button id="btn-close-settings" class="modal-close" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="settings-tabs">
+        <button class="tab-btn active" data-tab="preferences">Preferences</button>
+        <button class="tab-btn" data-tab="contact">Contact Us</button>
+        <button class="tab-btn" data-tab="about">About</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Tab 1: Preferences -->
+        <div id="tab-preferences" class="tab-content active">
+          <!-- Reduce Motion -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Reduce Motion</span>
+              <span class="setting-desc">Disable breathing bobbing & smooth camera lerps</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-reduce-motion" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Sensitivity Slider -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Wheel Sensitivity</span>
+              <span class="setting-desc">Scroll speed per rotary drag notch: <b id="val-sensitivity">1.0x</b></span>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" id="setting-sensitivity" min="0.5" max="2.5" step="0.1" value="1.0" />
+            </div>
+          </div>
+
+          <!-- Add Virtual Wheel -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">On-Screen Virtual Wheel</span>
+              <span class="setting-desc">Show touch-friendly overlay controller on screen</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-virtual-wheel" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Change Background from Files -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Custom Background Wallpaper</span>
+              <span class="setting-desc">Upload custom background image from your device</span>
+            </div>
+            <div class="bg-upload-btns">
+              <label for="bg-file-input" class="action-btn file-btn">
+                🖼️ Upload Image
+              </label>
+              <input type="file" id="bg-file-input" accept="image/*" style="display: none;" />
+              <button id="btn-reset-bg" class="action-btn reset-btn">Reset</button>
+            </div>
+          </div>
+
+          <!-- Auto Connect Real Headphone -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Auto-Plug Real Headphones</span>
+              <span class="setting-desc">Connect 3D jack when physical headphones are detected</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-auto-plug" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Tab 2: Contact Us -->
+        <div id="tab-contact" class="tab-content">
+          <div class="contact-card">
+            <div class="contact-header">
+              <div class="author-avatar">👨‍💻</div>
+              <div>
+                <h3 class="author-name">Bhagyesh Purohit</h3>
+                <p class="author-tagline">Creator & Maintainer of MP3 Player Simulator 3D</p>
+              </div>
+            </div>
+
+            <p class="contact-intro">
+              Have questions, feature requests, or feedback? Connect directly via GitHub or Email:
+            </p>
+
+            <div class="contact-buttons-group">
+              <!-- Combined / Individual Contact Buttons with icons -->
+              <a href="https://github.com/PurohitBhagyesh" target="_blank" rel="noopener noreferrer" class="contact-link-btn github-btn">
+                <svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                </svg>
+                <span>GitHub @PurohitBhagyesh</span>
+              </a>
+
+              <a href="mailto:Purohitunofficialbhagyesh@gmail.com" class="contact-link-btn email-btn">
+                <svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"/>
+                  <path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z"/>
+                </svg>
+                <span>Purohitunofficialbhagyesh@gmail.com</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: About (Privacy, Terms & License) -->
+        <div id="tab-about" class="tab-content">
+          <div class="about-section">
+            <h3>🔒 Privacy Policy</h3>
+            <p>
+              <strong>100% Client-Side & Private:</strong> This application runs entirely inside your web browser. 
+              Any MP3 files or wallpaper images you import are processed locally via the Web Audio API and HTML5 File APIs. 
+              No audio files, telemetry, tracking cookies, or personal data are ever uploaded, recorded, or sent to any remote server.
+            </p>
+          </div>
+
+          <div class="about-section">
+            <h3>📜 Terms of Use</h3>
+            <p>
+              MP3 Player Simulator 3D is an educational, interactive 3D web simulator built to preserve and recreate the tactile joy of classic portable MP3 players. 
+              It is free and open-source software for personal non-commercial appreciation.
+            </p>
+          </div>
+
+          <div class="about-section">
+            <h3>⚖️ MIT License</h3>
+            <p>
+              Copyright (c) 2026 Bhagyesh Purohit.<br />
+              Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files to deal in the Software without restriction, subject to the MIT license terms.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- On-Screen Virtual Click Wheel (Toggleable via Settings) -->
+  <div id="virtual-wheel-container" class="virtual-wheel-hud hidden">
+    <div class="vwheel-outer" id="vwheel-outer">
+      <button class="vwheel-btn vwheel-menu" id="vbtn-menu">MENU</button>
+      <button class="vwheel-btn vwheel-prev" id="vbtn-prev">|◀◀</button>
+      <button class="vwheel-btn vwheel-next" id="vbtn-next">▶▶|</button>
+      <button class="vwheel-btn vwheel-play" id="vbtn-play">▶❚❚</button>
+      <div class="vwheel-center" id="vbtn-center"></div>
+    </div>
+  </div>
+
   <!-- YouTube Style "Wear Headphones" Immersive Audio Popup -->
   <div id="immersive-modal" class="immersive-modal">
     <div class="immersive-card">
@@ -19,7 +264,7 @@
         <span class="wave wave-r">))</span>
       </div>
       <h2 class="immersive-heading">Wear Headphones</h2>
-      <p class="immersive-subtext">For the best immersive 3D audio experience, put on your headphones.</p>
+      <p class="immersive-subtext">For the authentic immersive 3D audio experience, plug in your headphones.</p>
       <button id="immersive-btn" class="immersive-btn">Feel It 🎧</button>
     </div>
   </div>

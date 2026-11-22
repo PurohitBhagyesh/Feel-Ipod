@@ -78,9 +78,9 @@ export class iPodScreenRenderer {
       ];
     } else if (view === 'settings') {
       return [
-        { id: 'about', label: 'About', hasSub: false },
-        { id: 'repeat', label: 'Repeat: All', hasSub: false },
-        { id: 'volumeLimit', label: 'Volume Limit', hasSub: false }
+        { id: 'settingsModal', label: 'Preferences...', hasSub: false },
+        { id: 'about', label: 'About', hasSub: true },
+        { id: 'repeat', label: 'Repeat: All', hasSub: false }
       ];
     } else if (view === 'songs') {
       return this.tracks.map((t, idx) => ({
@@ -122,6 +122,10 @@ export class iPodScreenRenderer {
       return { action: 'importMp3' };
     }
 
+    if (item.id === 'settingsModal') {
+      return { action: 'openSettings' };
+    }
+
     if (view === 'root') {
       if (item.id === 'music') {
         this.viewStack.push('music');
@@ -134,6 +138,11 @@ export class iPodScreenRenderer {
         this.selectedIndices.settings = 0;
       } else if (item.id === 'shuffle') {
         return { action: 'shuffle' };
+      }
+    } else if (view === 'settings') {
+      if (item.id === 'about') {
+        this.viewStack.push('about');
+        this.selectedIndices.about = 0;
       }
     } else if (view === 'music') {
       if (item.id === 'songs') {
@@ -210,6 +219,8 @@ export class iPodScreenRenderer {
     // 3. Content
     if (view === 'nowPlaying') {
       this.drawNowPlaying(ctx, w, h, freqData);
+    } else if (view === 'about') {
+      this.drawAbout(ctx, w, h);
     } else {
       this.drawMenuList(ctx, w, h, view);
     }
@@ -325,6 +336,41 @@ export class iPodScreenRenderer {
         ctx.fillText('📁', w - 20, y + 33);
       }
     });
+  }
+
+  drawAbout(ctx, w, h) {
+    const startY = 72;
+    const lineHeight = 42;
+    const items = [
+      { label: 'Songs', val: `${this.tracks.length}` },
+      { label: 'Capacity', val: '80.0 GB' },
+      { label: 'Available', val: '74.2 GB' },
+      { label: 'Version', val: '1.2 Simulator' },
+      { label: 'Author', val: 'Bhagyesh Purohit' },
+      { label: 'License', val: 'MIT Open Source' }
+    ];
+
+    items.forEach((item, idx) => {
+      const y = startY + idx * lineHeight;
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#222222';
+      ctx.fillText(item.label, 28, y);
+
+      ctx.textAlign = 'right';
+      ctx.font = '500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText(item.val, w - 28, y);
+
+      // Light separator
+      ctx.fillStyle = '#eeeeee';
+      ctx.fillRect(28, y + 12, w - 56, 1);
+    });
+
+    ctx.textAlign = 'center';
+    ctx.font = 'italic 16px sans-serif';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('Press MENU to return', w / 2, h - 22);
   }
 
   drawNowPlaying(ctx, w, h, freqData) {

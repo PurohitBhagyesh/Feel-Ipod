@@ -6,8 +6,8 @@ import { audioEngine } from './audioEffects.js';
 
 // --- State & Variables ---
 let scene, camera, renderer, controls;
-let ipodGroup;
-let headphoneJackPlug, earphoneCableLine;
+let ipodGroup, ipodBodyMesh;
+let headphoneJackPlug, earphoneCableLine, gripMesh;
 let screenTexture, screenRenderer, screenMesh, screenBezelMesh;
 
 // World Coordinates for the Top Headphone Hole & Plug
@@ -27,6 +27,91 @@ let isPlugAnimating = false;
 let clickWheelMesh, clickWheelCanvas, clickWheelCtx, clickWheelTexture;
 let activeWheelButtonTimeout = null;
 
+// Simulator Settings State
+const simulatorSettings = {
+  reduceMotion: false,
+  sensitivity: 1.0,
+  virtualWheel: false,
+  autoPlug: true,
+  customBg: null
+};
+
+// Theme Presets & Current Theme State
+const THEME_PRESETS = {
+  white: {
+    casing: '#ffffff',
+    wheel: '#e4e6ea',
+    wheelCenter: '#f4f5f8',
+    wheelText: '#1e293b',
+    jack: '#ffffff'
+  },
+  stealth: {
+    casing: '#141518',
+    wheel: '#26282e',
+    wheelCenter: '#1b1c20',
+    wheelText: '#f1f5f9',
+    jack: '#141518'
+  },
+  u2: {
+    casing: '#101114',
+    wheel: '#dc2626',
+    wheelCenter: '#101114',
+    wheelText: '#ffffff',
+    jack: '#101114'
+  },
+  silver: {
+    casing: '#d1d5db',
+    wheel: '#f1f3f6',
+    wheelCenter: '#ffffff',
+    wheelText: '#1e293b',
+    jack: '#ffffff'
+  },
+  spacegray: {
+    casing: '#4b5563',
+    wheel: '#374151',
+    wheelCenter: '#4b5563',
+    wheelText: '#ffffff',
+    jack: '#4b5563'
+  },
+  blue: {
+    casing: '#2563eb',
+    wheel: '#dbeafe',
+    wheelCenter: '#eff6ff',
+    wheelText: '#1e3a8a',
+    jack: '#2563eb'
+  },
+  pink: {
+    casing: '#ec4899',
+    wheel: '#fce7f3',
+    wheelCenter: '#fff1f2',
+    wheelText: '#831843',
+    jack: '#ec4899'
+  },
+  mint: {
+    casing: '#10b981',
+    wheel: '#d1fae5',
+    wheelCenter: '#ecfdf5',
+    wheelText: '#064e3b',
+    jack: '#10b981'
+  },
+  gold: {
+    casing: '#f59e0b',
+    wheel: '#fef3c7',
+    wheelCenter: '#fffbeb',
+    wheelText: '#78350f',
+    jack: '#f59e0b'
+  },
+  purple: {
+    casing: '#8b5cf6',
+    wheel: '#ede9fe',
+    wheelCenter: '#f5f3ff',
+    wheelText: '#4c1d95',
+    jack: '#8b5cf6'
+  }
+};
+
+let currentTheme = { ...THEME_PRESETS.white };
+
 // Toast Notification
 function showToast(message) {
   const toast = document.getElementById('toast');
@@ -36,7 +121,7 @@ function showToast(message) {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove('active');
-  }, 2400);
+  }, 2600);
 }
 
 // YouTube-Style "Wear Headphones" Immersive Audio Modal
@@ -69,6 +154,9 @@ function setupImmersiveModal() {
 // --- Initialize Scene ---
 function init() {
   const container = document.getElementById('canvas-container');
+
+  // Load saved settings & theme from localStorage
+  loadSavedSettings();
 
   // Scene without hardcoded background so CSS studio gradient shows through
   scene = new THREE.Scene();
@@ -106,20 +194,25 @@ function init() {
   // 1. Dynamic LCD Screen Engine & Dedicated Screen Plane
   createDedicatedScreen();
 
-  // 2. Pristine Polished 3.5mm Headphone Jack Assembly
+  // 2. Pristine Polished 3.5mm Headphone Jack Assembly (Genuine Apple White Insulators)
   createHeadphoneJackAssembly();
 
-  // 3. Procedural Pixel-Perfect Click Wheel
+  // 3. Procedural Razor-Sharp Vector Click Wheel (100% Concentric & Highlighted)
   createProceduralClickWheel();
 
-  // 4. Load iPod Model Body
+  // 4. Load MP3 Player Model Body
   loadIpodModel();
 
-  // Setup Direct Click Wheel & Audio
+  // Setup Controls, Interactions, Modals & Settings
   setupDirectClickWheel();
   setupPlugInteraction();
   setupMP3DropImporter();
   setupImmersiveModal();
+  setupTopNav();
+  setupThemeCustomizer();
+  setupSettingsModal();
+  setupVirtualWheelHUD();
+  setupPhysicalHeadphoneDetection();
 
   // Audio Sync
   window.addEventListener('ipod-timeupdate', (e) => {
@@ -128,8 +221,11 @@ function init() {
   });
 
   window.addEventListener('ipod-state-change', () => {
-    screenRenderer.setTrack(audioEngine.getCurrentTrack(), audioEngine.isPlaying);
+    const track = audioEngine.getCurrentTrack();
+    const isPlaying = audioEngine.isPlaying;
+    screenRenderer.setTrack(track, isPlaying);
     if (screenTexture) screenTexture.needsUpdate = true;
+    updateTopNavTrackBadge(track, isPlaying);
   });
 
   // Responsive Resizing
@@ -173,7 +269,7 @@ function createDedicatedScreen() {
   scene.add(screenMesh);
 }
 
-// --- Dynamic Camera Framing (Comfortable Framing with Space for Plug) ---
+// --- Dynamic Camera Framing ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   if (aspect < 1) {
@@ -247,25 +343,25 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Pristine Polished 3.5mm Headphone Jack Assembly (100% Corrosion-Free) ---
+// --- Genuine Apple Wired Earphone 3.5mm Plug (Pure White Insulator Rings & Mirror Chrome) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Gleaming mirror-polished Apple nickel/chrome metal
+  // Gleaming mirror-polished silver chrome metal (100% corrosion-free)
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xf5f8fc,
+    color: 0xfcfdff,
     metalness: 0.98,
-    roughness: 0.06
+    roughness: 0.05
   });
 
-  // Sharp, clean matte dark polymer insulator rings
-  const insulatorMat = new THREE.MeshStandardMaterial({
-    color: 0x18191e,
-    roughness: 0.8,
-    metalness: 0.1
+  // Authentic Apple Wired EarPods White Polymer Insulator Rings
+  const whiteInsulatorMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.15,
+    metalness: 0.02
   });
 
-  // 1. Tapered Bullet Tip (Smooth conical tip with rounded dome bottom)
+  // 1. Tapered Bullet Tip
   const tipDomeGeo = new THREE.SphereGeometry(0.024, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
   const tipDome = new THREE.Mesh(tipDomeGeo, chromeMat);
   tipDome.position.y = -0.165;
@@ -282,28 +378,40 @@ function createHeadphoneJackAssembly() {
   waist.position.y = -0.128;
   headphoneJackPlug.add(waist);
 
-  // Insulator Ring 1
+  // Insulator Ring 1 (Pure White)
   const ring1Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
-  const ring1 = new THREE.Mesh(ring1Geo, insulatorMat);
+  const ring1 = new THREE.Mesh(ring1Geo, whiteInsulatorMat);
   ring1.position.y = -0.117;
   headphoneJackPlug.add(ring1);
 
-  // Ring Conductor (Right Audio)
-  const ringConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.036, 32);
+  // Ring Conductor 1 (Right Audio)
+  const ringConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.032, 32);
   const ringConductor = new THREE.Mesh(ringConductorGeo, chromeMat);
-  ringConductor.position.y = -0.095;
+  ringConductor.position.y = -0.096;
   headphoneJackPlug.add(ringConductor);
 
-  // Insulator Ring 2
+  // Insulator Ring 2 (Pure White)
   const ring2Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
-  const ring2 = new THREE.Mesh(ring2Geo, insulatorMat);
-  ring2.position.y = -0.073;
+  const ring2 = new THREE.Mesh(ring2Geo, whiteInsulatorMat);
+  ring2.position.y = -0.076;
   headphoneJackPlug.add(ring2);
 
-  // Sleeve Conductor (Ground)
-  const sleeveGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.065, 32);
+  // Ring Conductor 2 (Ground)
+  const ring2ConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.025, 32);
+  const ring2Conductor = new THREE.Mesh(ring2ConductorGeo, chromeMat);
+  ring2Conductor.position.y = -0.058;
+  headphoneJackPlug.add(ring2Conductor);
+
+  // Insulator Ring 3 (Pure White)
+  const ring3Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  const ring3 = new THREE.Mesh(ring3Geo, whiteInsulatorMat);
+  ring3.position.y = -0.041;
+  headphoneJackPlug.add(ring3);
+
+  // Sleeve Conductor (Mic / Control)
+  const sleeveGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.030, 32);
   const sleeve = new THREE.Mesh(sleeveGeo, chromeMat);
-  sleeve.position.y = -0.037;
+  sleeve.position.y = -0.022;
   headphoneJackPlug.add(sleeve);
 
   // Polished chrome collar transition
@@ -312,14 +420,14 @@ function createHeadphoneJackAssembly() {
   collarBevel.position.y = -0.004;
   headphoneJackPlug.add(collarBevel);
 
-  // 2. Pure White Polycarbonate Grip Barrel
+  // 2. White Polycarbonate Grip Barrel
   const gripMat = new THREE.MeshStandardMaterial({
-    color: 0xfcfdff,
+    color: new THREE.Color(currentTheme.jack),
     roughness: 0.18,
     metalness: 0.02
   });
   const gripGeo = new THREE.CylinderGeometry(0.058, 0.058, 0.22, 32);
-  const gripMesh = new THREE.Mesh(gripGeo, gripMat);
+  gripMesh = new THREE.Mesh(gripGeo, gripMat);
   gripMesh.position.y = 0.11;
   headphoneJackPlug.add(gripMesh);
 
@@ -329,7 +437,7 @@ function createHeadphoneJackAssembly() {
   reliefMesh.position.y = 0.26;
   headphoneJackPlug.add(reliefMesh);
 
-  // 4. Smooth Earphone Cable extending upward into the studio space
+  // 4. Smooth Earphone Cable extending upward into studio space
   const cableCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0.31, 0),
     new THREE.Vector3(0.02, 0.55, -0.05),
@@ -338,18 +446,18 @@ function createHeadphoneJackAssembly() {
   ]);
   const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.022, 8, false);
   const cableMat = new THREE.MeshStandardMaterial({
-    color: 0xf0f2f5,
+    color: new THREE.Color(currentTheme.jack),
     roughness: 0.35
   });
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
 
-  // Position hovering directly above the headphone jack opening
+  // Position hovering directly above top opening
   headphoneJackPlug.position.set(PLUG_HOLE_X, PLUG_HOVER_Y, PLUG_HOLE_Z);
   scene.add(headphoneJackPlug);
 }
 
-// --- Procedural Razor-Sharp Vector Click Wheel (100% Concentric & Aligned) ---
+// --- Procedural Razor-Sharp Vector Click Wheel (100% Concentric & Highlighted) ---
 function createProceduralClickWheel() {
   clickWheelCanvas = document.createElement('canvas');
   clickWheelCanvas.width = 1024;
@@ -363,8 +471,8 @@ function createProceduralClickWheel() {
   clickWheelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   clickWheelTexture.needsUpdate = true;
 
-  // Circular Click Wheel overlay mesh positioned right on the front casing
-  const geo = new THREE.CircleGeometry(0.375, 64);
+  // Circular Click Wheel overlay mesh covering the entire molded wheel area (R = 0.402)
+  const geo = new THREE.CircleGeometry(0.402, 64);
   const mat = new THREE.MeshBasicMaterial({
     map: clickWheelTexture,
     transparent: true,
@@ -385,56 +493,59 @@ function renderClickWheelTexture(pressedButton = null) {
   const h = clickWheelCanvas.height;
   const cx = w / 2;
   const cy = h / 2;
-  const outerR = 492;
+  const outerR = 506;
   const innerR = 176;
 
   ctx.clearRect(0, 0, w, h);
 
-  // 1. Outer Ring Base (Smooth Classic Matte Grey)
+  // 1. Outer Ring Base
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
   ctx.arc(cx, cy, innerR, 0, Math.PI * 2, true);
   ctx.closePath();
-  ctx.fillStyle = '#e4e6ea';
+  ctx.fillStyle = currentTheme.wheel;
   ctx.fill();
 
-  // Subtle outer edge shadow
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  // Subtle tactile outer edge seam
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.10)';
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // Subtle inner seam shadow
+  // Subtle inner seam
   ctx.beginPath();
   ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.16)';
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // 2. High-Contrast, Razor-Sharp Button Typography & Icons
+  // 2. High-Contrast, Highlighted Button Typography & Icons
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
+  const defaultTextColor = currentTheme.wheelText;
+  const activeColor = '#2563eb'; // Vibrant electric blue press flash
+
   // TOP: MENU
-  const menuY = cy - 338;
-  ctx.font = 'bold 50px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = pressedButton === 'menu' ? '#8e9fb8' : '#ffffff';
+  const menuY = cy - 346;
+  ctx.font = 'bold 54px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillStyle = pressedButton === 'menu' ? activeColor : defaultTextColor;
   ctx.fillText('MENU', cx, menuY);
 
   // BOTTOM: PLAY/PAUSE
-  const playY = cy + 338;
-  ctx.fillStyle = pressedButton === 'play' ? '#8e9fb8' : '#ffffff';
-  drawPlayPauseIcon(ctx, cx, playY, 32);
+  const playY = cy + 346;
+  ctx.fillStyle = pressedButton === 'play' ? activeColor : defaultTextColor;
+  drawPlayPauseIcon(ctx, cx, playY, 34);
 
   // LEFT: PREV |<<
-  const prevX = cx - 338;
-  ctx.fillStyle = pressedButton === 'prev' ? '#8e9fb8' : '#ffffff';
-  drawPrevIcon(ctx, prevX, cy, 32);
+  const prevX = cx - 346;
+  ctx.fillStyle = pressedButton === 'prev' ? activeColor : defaultTextColor;
+  drawPrevIcon(ctx, prevX, cy, 34);
 
   // RIGHT: NEXT >>|
-  const nextX = cx + 338;
-  ctx.fillStyle = pressedButton === 'next' ? '#8e9fb8' : '#ffffff';
-  drawNextIcon(ctx, nextX, cy, 32);
+  const nextX = cx + 346;
+  ctx.fillStyle = pressedButton === 'next' ? activeColor : defaultTextColor;
+  drawNextIcon(ctx, nextX, cy, 34);
 
   ctx.restore();
 
@@ -442,10 +553,10 @@ function renderClickWheelTexture(pressedButton = null) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, innerR - 2, 0, Math.PI * 2);
-  ctx.fillStyle = pressedButton === 'select' ? '#e0e3ea' : '#f4f5f8';
+  ctx.fillStyle = pressedButton === 'select' ? '#dbeafe' : currentTheme.wheelCenter;
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)';
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
@@ -459,7 +570,7 @@ function flashWheelButton(btn) {
   activeWheelButtonTimeout = setTimeout(() => {
     renderClickWheelTexture(null);
     if (clickWheelTexture) clickWheelTexture.needsUpdate = true;
-  }, 120);
+  }, 130);
 }
 
 function drawPlayPauseIcon(ctx, x, y, size) {
@@ -548,7 +659,7 @@ function loadIpodModel() {
         ) {
           child.visible = false;
         }
-        // Pristine, Opaque White Casing & Switches (Zero Logos / Brand Markings)
+        // Pristine, Opaque Casing & Switches (Zero Logos / Brand Markings)
         else {
           if (name.includes('Switch') || parentName.includes('Switch')) {
             child.material = new THREE.MeshStandardMaterial({
@@ -563,12 +674,13 @@ function loadIpodModel() {
               roughness: 0.15
             });
           } else {
-            // Main body casing: pure glossy white without any brand logos or artifacts
+            // Main body casing: pure solid glossy color without any brand logos or old textures
             child.material = new THREE.MeshStandardMaterial({
-              color: 0xfcfdff,
+              color: new THREE.Color(currentTheme.casing),
               roughness: 0.18,
               metalness: 0.05
             });
+            ipodBodyMesh = child;
           }
           child.material.transparent = false;
           child.material.opacity = 1.0;
@@ -589,15 +701,19 @@ function loadIpodModel() {
   });
 }
 
-// --- Headphone Jack Insertion Animation (Smooth Ease-in-Out Spring) ---
-function toggleHeadphonePlug() {
+// --- Headphone Jack Insertion Animation ---
+function toggleHeadphonePlug(forceState = null) {
   if (isPlugAnimating) return;
+
+  const nextState = forceState !== null ? forceState : !isPluggedIn;
+  if (nextState === isPluggedIn) return;
+
   isPlugAnimating = true;
-  isPluggedIn = !isPluggedIn;
+  isPluggedIn = nextState;
 
   const targetY = isPluggedIn ? PLUG_INSERTED_Y : PLUG_HOVER_Y;
   const startY = headphoneJackPlug.position.y;
-  const duration = 420;
+  const duration = simulatorSettings.reduceMotion ? 80 : 380;
   const startTime = Date.now();
 
   function animatePlugStep() {
@@ -615,6 +731,12 @@ function toggleHeadphonePlug() {
       audioEngine.setHeadphonesPlugged(isPluggedIn);
       screenRenderer.isHeadphonesPlugged = isPluggedIn;
       if (screenTexture) screenTexture.needsUpdate = true;
+
+      // Update top nav button status
+      const plugLabel = document.getElementById('plug-status-label');
+      const plugBtn = document.getElementById('btn-plug-toggle');
+      if (plugLabel) plugLabel.textContent = isPluggedIn ? 'Unplug' : 'Plug In';
+      if (plugBtn) plugBtn.classList.toggle('active', isPluggedIn);
 
       if (isPluggedIn) {
         showToast("🎧 Earphones connected!");
@@ -641,6 +763,11 @@ function setupPlugInteraction() {
   const mouse = new THREE.Vector2();
 
   window.addEventListener('click', (e) => {
+    // Ignore clicks on HTML navigation / modals
+    if (e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+      return;
+    }
+
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
@@ -700,6 +827,10 @@ function setupDirectClickWheel() {
 
   // Pointer Down
   window.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.top-nav') || e.target.closest('.theme-tray') || e.target.closest('.modal-overlay') || e.target.closest('.virtual-wheel-hud')) {
+      return;
+    }
+
     audioEngine.init();
 
     const hit = getRaycastHit(e);
@@ -710,8 +841,8 @@ function setupDirectClickWheel() {
     const dy = p.y - WHEEL_CENTER_Y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Front face Click Wheel zone: R <= 0.40, Z > 0.05
-    if (dist <= 0.40 && p.z > 0.05) {
+    // Front face Click Wheel zone: R <= 0.42, Z > 0.05
+    if (dist <= 0.42 && p.z > 0.05) {
       isWheelDragging = true;
       hasDragged = false;
       dragStartPoint.set(e.clientX, e.clientY);
@@ -744,8 +875,8 @@ function setupDirectClickWheel() {
     accumulatedAngle += delta;
     lastWheelAngle = currentAngle;
 
-    // ~14 degrees per mechanical click notch
-    const notch = Math.PI / 13;
+    // Sensitivity adjusted notch threshold
+    const notch = (Math.PI / 13) / (simulatorSettings.sensitivity || 1.0);
     if (Math.abs(accumulatedAngle) >= notch) {
       const step = delta < 0 ? 1 : -1;
       accumulatedAngle = 0;
@@ -778,7 +909,7 @@ function setupDirectClickWheel() {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       // 1. Center Button (SELECT)
-      if (dist < 0.135) {
+      if (dist < 0.14) {
         flashWheelButton('select');
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
@@ -786,6 +917,8 @@ function setupDirectClickWheel() {
           if (res.action === 'importMp3') {
             const fileInput = document.getElementById('mp3-file-input');
             if (fileInput) fileInput.click();
+          } else if (res.action === 'openSettings') {
+            document.getElementById('settings-modal').classList.remove('hidden');
           } else if (res.action === 'playTrack') {
             const track = audioEngine.selectTrackById(res.trackId);
             screenRenderer.setTrack(track, true);
@@ -812,7 +945,7 @@ function setupDirectClickWheel() {
       }
 
       // 2. Outer Ring Buttons: MENU, PLAY/PAUSE, PREV, NEXT
-      if (dist >= 0.14 && dist <= 0.40) {
+      if (dist >= 0.14 && dist <= 0.42) {
         const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
 
         if (angleDeg >= 45 && angleDeg <= 135) {
@@ -864,6 +997,375 @@ function setupDirectClickWheel() {
       if (screenTexture) screenTexture.needsUpdate = true;
     }
   }, { passive: true });
+}
+
+// --- Top Navigation & Live Badge ---
+function setupTopNav() {
+  const btnTheme = document.getElementById('btn-theme');
+  const btnSettings = document.getElementById('btn-settings');
+  const btnImportTop = document.getElementById('btn-import-top');
+  const btnPlugToggle = document.getElementById('btn-plug-toggle');
+  const themeTray = document.getElementById('theme-tray');
+  const settingsModal = document.getElementById('settings-modal');
+
+  btnTheme.addEventListener('click', () => {
+    themeTray.classList.toggle('hidden');
+    if (!themeTray.classList.contains('hidden')) {
+      settingsModal.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('btn-close-theme').addEventListener('click', () => {
+    themeTray.classList.add('hidden');
+  });
+
+  btnSettings.addEventListener('click', () => {
+    settingsModal.classList.remove('hidden');
+    themeTray.classList.add('hidden');
+  });
+
+  btnImportTop.addEventListener('click', () => {
+    const fileInput = document.getElementById('mp3-file-input');
+    if (fileInput) fileInput.click();
+  });
+
+  btnPlugToggle.addEventListener('click', () => {
+    audioEngine.init();
+    toggleHeadphonePlug();
+  });
+}
+
+function updateTopNavTrackBadge(track, isPlaying) {
+  const badge = document.getElementById('nav-track-badge');
+  const title = document.getElementById('nav-track-title');
+  if (!badge || !title) return;
+
+  if (track && isPlaying) {
+    badge.classList.remove('hidden');
+    title.textContent = `${track.title} - ${track.artist}`;
+  } else if (!isPlaying) {
+    badge.classList.add('hidden');
+  }
+}
+
+// --- Color Customizer & Theme Presets ---
+function setupThemeCustomizer() {
+  const swatches = document.querySelectorAll('.color-swatch');
+  const casingPicker = document.getElementById('casing-color-picker');
+  const wheelPicker = document.getElementById('wheel-color-picker');
+  const jackPicker = document.getElementById('jack-color-picker');
+
+  swatches.forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      const themeKey = swatch.dataset.theme;
+      if (THEME_PRESETS[themeKey]) {
+        applyTheme(THEME_PRESETS[themeKey]);
+        swatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+      }
+    });
+  });
+
+  casingPicker.addEventListener('input', (e) => {
+    currentTheme.casing = e.target.value;
+    document.getElementById('casing-color-hex').textContent = e.target.value.toUpperCase();
+    applyCustomTheme();
+  });
+
+  wheelPicker.addEventListener('input', (e) => {
+    currentTheme.wheel = e.target.value;
+    document.getElementById('wheel-color-hex').textContent = e.target.value.toUpperCase();
+    applyCustomTheme();
+  });
+
+  jackPicker.addEventListener('input', (e) => {
+    currentTheme.jack = e.target.value;
+    document.getElementById('jack-color-hex').textContent = e.target.value.toUpperCase();
+    applyCustomTheme();
+  });
+}
+
+function applyTheme(theme) {
+  currentTheme = { ...theme };
+
+  // Update pickers
+  const casingPicker = document.getElementById('casing-color-picker');
+  const wheelPicker = document.getElementById('wheel-color-picker');
+  const jackPicker = document.getElementById('jack-color-picker');
+  if (casingPicker) casingPicker.value = currentTheme.casing;
+  if (wheelPicker) wheelPicker.value = currentTheme.wheel;
+  if (jackPicker) jackPicker.value = currentTheme.jack;
+  document.getElementById('casing-color-hex').textContent = currentTheme.casing.toUpperCase();
+  document.getElementById('wheel-color-hex').textContent = currentTheme.wheel.toUpperCase();
+  document.getElementById('jack-color-hex').textContent = currentTheme.jack.toUpperCase();
+
+  applyCustomTheme();
+}
+
+function applyCustomTheme() {
+  // 1. Update iPod Casing 3D Mesh Material
+  if (ipodBodyMesh && ipodBodyMesh.material) {
+    ipodBodyMesh.material.color.set(currentTheme.casing);
+    ipodBodyMesh.material.needsUpdate = true;
+  }
+
+  // 2. Update Click Wheel Procedural Texture
+  renderClickWheelTexture();
+  if (clickWheelTexture) clickWheelTexture.needsUpdate = true;
+
+  // 3. Update Headphone Jack Grip & Cable Material
+  if (gripMesh && gripMesh.material) {
+    gripMesh.material.color.set(currentTheme.jack);
+    gripMesh.material.needsUpdate = true;
+  }
+  if (earphoneCableLine && earphoneCableLine.material) {
+    earphoneCableLine.material.color.set(currentTheme.jack);
+    earphoneCableLine.material.needsUpdate = true;
+  }
+
+  // Save to localStorage
+  localStorage.setItem('mp3_theme', JSON.stringify(currentTheme));
+}
+
+// --- Settings Modal & Tabs ---
+function setupSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  const btnClose = document.getElementById('btn-close-settings');
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const targetTab = document.getElementById(`tab-${btn.dataset.tab}`);
+      if (targetTab) targetTab.classList.add('active');
+    });
+  });
+
+  // Reduce Motion
+  const chkReduceMotion = document.getElementById('setting-reduce-motion');
+  chkReduceMotion.checked = simulatorSettings.reduceMotion;
+  chkReduceMotion.addEventListener('change', (e) => {
+    simulatorSettings.reduceMotion = e.target.checked;
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+  });
+
+  // Sensitivity
+  const rngSensitivity = document.getElementById('setting-sensitivity');
+  const valSensitivity = document.getElementById('val-sensitivity');
+  rngSensitivity.value = simulatorSettings.sensitivity;
+  valSensitivity.textContent = `${simulatorSettings.sensitivity}x`;
+  rngSensitivity.addEventListener('input', (e) => {
+    simulatorSettings.sensitivity = parseFloat(e.target.value);
+    valSensitivity.textContent = `${simulatorSettings.sensitivity.toFixed(1)}x`;
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+  });
+
+  // Virtual Click Wheel
+  const chkVirtualWheel = document.getElementById('setting-virtual-wheel');
+  chkVirtualWheel.checked = simulatorSettings.virtualWheel;
+  chkVirtualWheel.addEventListener('change', (e) => {
+    simulatorSettings.virtualWheel = e.target.checked;
+    document.getElementById('virtual-wheel-container').classList.toggle('hidden', !e.target.checked);
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+  });
+
+  // Auto-Plug
+  const chkAutoPlug = document.getElementById('setting-auto-plug');
+  chkAutoPlug.checked = simulatorSettings.autoPlug;
+  chkAutoPlug.addEventListener('change', (e) => {
+    simulatorSettings.autoPlug = e.target.checked;
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+  });
+
+  // Custom Background Wallpaper from file
+  const bgInput = document.getElementById('bg-file-input');
+  bgInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        document.body.style.backgroundImage = `url("${url}")`;
+        simulatorSettings.customBg = url;
+        localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+        showToast("🖼️ Background wallpaper updated!");
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  document.getElementById('btn-reset-bg').addEventListener('click', () => {
+    document.body.style.backgroundImage = '';
+    simulatorSettings.customBg = null;
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+    showToast("Background reset to Studio gradient");
+  });
+}
+
+// --- On-Screen Virtual Click Wheel HUD ---
+function setupVirtualWheelHUD() {
+  const vWheelOuter = document.getElementById('vwheel-outer');
+  const vBtnMenu = document.getElementById('vbtn-menu');
+  const vBtnPlay = document.getElementById('vbtn-play');
+  const vBtnPrev = document.getElementById('vbtn-prev');
+  const vBtnNext = document.getElementById('vbtn-next');
+  const vBtnCenter = document.getElementById('vbtn-center');
+
+  vBtnMenu.addEventListener('click', () => {
+    audioEngine.playButtonPress();
+    flashWheelButton('menu');
+    screenRenderer.goBack();
+    if (screenTexture) screenTexture.needsUpdate = true;
+  });
+
+  vBtnCenter.addEventListener('click', () => {
+    audioEngine.playButtonPress();
+    flashWheelButton('select');
+    const res = screenRenderer.selectCurrent();
+    if (res) {
+      if (res.action === 'importMp3') {
+        document.getElementById('mp3-file-input').click();
+      } else if (res.action === 'openSettings') {
+        document.getElementById('settings-modal').classList.remove('hidden');
+      } else if (res.action === 'playTrack') {
+        const track = audioEngine.selectTrackById(res.trackId);
+        screenRenderer.setTrack(track, true);
+      } else if (res.action === 'togglePlay') {
+        if (!isPluggedIn) {
+          toggleHeadphonePlug();
+        } else {
+          const isPlaying = audioEngine.toggleMusic();
+          screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+        }
+      }
+    }
+    if (screenTexture) screenTexture.needsUpdate = true;
+  });
+
+  vBtnPlay.addEventListener('click', () => {
+    flashWheelButton('play');
+    if (!isPluggedIn) {
+      toggleHeadphonePlug();
+    } else {
+      const isPlaying = audioEngine.toggleMusic();
+      screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+      if (screenTexture) screenTexture.needsUpdate = true;
+    }
+  });
+
+  vBtnPrev.addEventListener('click', () => {
+    flashWheelButton('prev');
+    const track = audioEngine.prevTrack();
+    screenRenderer.setTrack(track, audioEngine.isPlaying);
+    if (screenTexture) screenTexture.needsUpdate = true;
+  });
+
+  vBtnNext.addEventListener('click', () => {
+    flashWheelButton('next');
+    const track = audioEngine.nextTrack();
+    screenRenderer.setTrack(track, audioEngine.isPlaying);
+    if (screenTexture) screenTexture.needsUpdate = true;
+  });
+
+  // Touch rotary scrubbing on Virtual Wheel
+  let isVDragging = false;
+  let lastVAngle = 0;
+  let accumulatedVAngle = 0;
+
+  function getVAngle(clientX, clientY) {
+    const rect = vWheelOuter.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(clientY - cy, clientX - cx);
+  }
+
+  vWheelOuter.addEventListener('pointerdown', (e) => {
+    if (e.target !== vWheelOuter) return;
+    isVDragging = true;
+    lastVAngle = getVAngle(e.clientX, e.clientY);
+    accumulatedVAngle = 0;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!isVDragging) return;
+    const currentAngle = getVAngle(e.clientX, e.clientY);
+    let delta = currentAngle - lastVAngle;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    accumulatedVAngle += delta;
+    lastVAngle = currentAngle;
+
+    const notch = (Math.PI / 13) / (simulatorSettings.sensitivity || 1.0);
+    if (Math.abs(accumulatedVAngle) >= notch) {
+      const step = delta < 0 ? 1 : -1;
+      accumulatedVAngle = 0;
+      audioEngine.playWheelClick();
+
+      if (screenRenderer.getCurrentView() === 'nowPlaying') {
+        const newVol = audioEngine.setVolume(audioEngine.volume + (step > 0 ? -0.05 : 0.05));
+        screenRenderer.showVolumeHUD(newVol);
+      } else {
+        screenRenderer.scroll(step);
+      }
+      if (screenTexture) screenTexture.needsUpdate = true;
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    isVDragging = false;
+  });
+}
+
+// --- Auto-Connect Real Physical Headphones ---
+function setupPhysicalHeadphoneDetection() {
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', async () => {
+      if (!simulatorSettings.autoPlug) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+        const hasHeadphones = audioOutputs.some(d =>
+          /headphone|headset|earbud|airpod|earphone|audio/i.test(d.label)
+        );
+
+        if (hasHeadphones && !isPluggedIn) {
+          toggleHeadphonePlug(true);
+          showToast("🎧 Real headphones detected! Auto-plugged jack.");
+        }
+      } catch (err) {
+        console.warn('Physical device detection check:', err);
+      }
+    });
+  }
+}
+
+// --- Load Saved Settings & Custom Background ---
+function loadSavedSettings() {
+  try {
+    const saved = localStorage.getItem('mp3_settings');
+    if (saved) {
+      Object.assign(simulatorSettings, JSON.parse(saved));
+    }
+    const savedTheme = localStorage.getItem('mp3_theme');
+    if (savedTheme) {
+      Object.assign(currentTheme, JSON.parse(savedTheme));
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+
+  // Apply custom background if saved
+  if (simulatorSettings.customBg) {
+    document.body.style.backgroundImage = `url("${simulatorSettings.customBg}")`;
+  }
 }
 
 // --- Local MP3 File Import via Menu, Button, File Input, or Drag & Drop ---
@@ -936,10 +1438,21 @@ function animate() {
 
   controls.update();
 
-  // Gentle float on unplugged hovering plug
-  if (!isPluggedIn && !isPlugAnimating && headphoneJackPlug) {
-    const t = Date.now() * 0.002;
-    headphoneJackPlug.position.y = PLUG_HOVER_Y + Math.sin(t) * 0.015;
+  // Subtle breathing float (disabled if reduceMotion is on)
+  if (!simulatorSettings.reduceMotion) {
+    if (ipodGroup) {
+      const t = Date.now() * 0.0012;
+      ipodGroup.position.y = IPOD_OFFSET_Y + Math.sin(t) * 0.012;
+      if (screenMesh) screenMesh.position.y = SCREEN_CENTER_Y + Math.sin(t) * 0.012;
+      if (screenBezelMesh) screenBezelMesh.position.y = SCREEN_CENTER_Y + Math.sin(t) * 0.012;
+      if (clickWheelMesh) clickWheelMesh.position.y = WHEEL_CENTER_Y + Math.sin(t) * 0.012;
+    }
+
+    // Gentle float on unplugged hovering plug
+    if (!isPluggedIn && !isPlugAnimating && headphoneJackPlug) {
+      const t = Date.now() * 0.002;
+      headphoneJackPlug.position.y = PLUG_HOVER_Y + Math.sin(t) * 0.014;
+    }
   }
 
   // Update dynamic LCD screen canvas with live frequency data for equalizer
