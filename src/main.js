@@ -10,15 +10,19 @@ let ipodGroup;
 let headphoneJackPlug, earphoneCableLine;
 let screenTexture, screenRenderer;
 
-// Plug State & Positions
-let isPluggedIn = false;
-let isPlugAnimating = false;
+// World Coordinates for the Top Headphone Hole & Plug
+// When iPod is scaled to height=2.0 and positioned at y=-0.15:
+const IPOD_OFFSET_Y = -0.15;
+const WHEEL_CENTER_Y = -0.42 + IPOD_OFFSET_Y; // -0.57
 const PLUG_HOLE_X = 0;
 const PLUG_HOLE_Z = 0;
-const PLUG_INSERTED_Y = 1.005; // Metal pin is inside the hole, collar sits flush on top
-const PLUG_HOVER_Y = 1.48;     // Hovering above the hole with visible space
+const PLUG_INSERTED_Y = 1.0 + IPOD_OFFSET_Y + 0.01; // 0.86
+const PLUG_HOVER_Y = 1.0 + IPOD_OFFSET_Y + 0.42;    // 1.27
 
-// Toast
+let isPluggedIn = false;
+let isPlugAnimating = false;
+
+// Toast Notification
 function showToast(message) {
   const toast = document.getElementById('toast');
   if (!toast) return;
@@ -38,8 +42,8 @@ function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
 
-  // Camera setup: slightly elevated to see the top surface and hole clearly
-  camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 50);
+  // Camera setup: framed closely to fill the screen
+  camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 50);
   updateCameraFraming();
 
   // Renderer
@@ -59,7 +63,7 @@ function init() {
   controls.enableZoom = false;
   controls.target.set(0, 0.05, 0);
 
-  // Studio Lighting (producing the soft highlight on the right edge as in reference image)
+  // Studio Lighting
   setupLighting();
 
   // Dynamic LCD Screen Engine
@@ -70,7 +74,7 @@ function init() {
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  // Create Headphone Jack Assembly (Pin, Collar, and Curved Cable)
+  // Create Headphone Jack Assembly (3.5mm Plug + White Cable)
   createHeadphoneJackAssembly();
 
   // Load iPod Model
@@ -94,38 +98,38 @@ function init() {
   animate();
 }
 
-// --- Dynamic Camera Framing ---
+// --- Dynamic Camera Framing (Zoomed In & Large) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   if (aspect < 1) {
-    // Mobile Portrait: scale Z to frame device width and top jack space
-    const z = Math.max(3.2, 3.2 / aspect * 0.62);
-    camera.position.set(0, 0.42, z);
+    // Mobile Portrait: scale Z to frame device width and top jack space comfortably
+    const z = Math.max(2.8, 2.5 / aspect * 0.65);
+    camera.position.set(0, 0.35, z);
   } else {
-    // Desktop Landscape: close framing with headspace above iPod
-    camera.position.set(0, 0.38, 3.05);
+    // Desktop Landscape: close, prominent framing filling the screen
+    camera.position.set(0, 0.30, 2.45);
   }
 }
 
 // --- Lighting ---
 function setupLighting() {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
   scene.add(ambientLight);
 
   // Key Spotlight casting the specular sheen on the front right edge
   const keyLight = new THREE.SpotLight(0xffffff, 4.2);
-  keyLight.position.set(2.4, 3.8, 3.5);
+  keyLight.position.set(2.4, 3.6, 3.5);
   keyLight.angle = Math.PI / 4;
   keyLight.penumbra = 0.7;
   scene.add(keyLight);
 
   // Soft fill from left
-  const fillLight = new THREE.DirectionalLight(0xddeeff, 1.3);
+  const fillLight = new THREE.DirectionalLight(0xddeeff, 1.4);
   fillLight.position.set(-3, 2, 2);
   scene.add(fillLight);
 
-  // Subtle top light illuminating the headphone jack opening
-  const topLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  // Top rim light
+  const topLight = new THREE.DirectionalLight(0xffffff, 2.2);
   topLight.position.set(0, 4, 1);
   scene.add(topLight);
 }
@@ -134,16 +138,15 @@ function setupLighting() {
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // 1. Metal TRS Pin (Gold with black insulation rings)
+  // 1. Metal TRS Pin (Gold with black bands)
   const pinMat = new THREE.MeshStandardMaterial({
     color: 0xf5c342,
     metalness: 0.95,
     roughness: 0.15
   });
-  // Pin length is ~0.15, radius 0.033
   const pinGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.15, 24);
   const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-  pinMesh.position.y = -0.075; // Extends downward into the hole
+  pinMesh.position.y = -0.075;
   headphoneJackPlug.add(pinMesh);
 
   // Black insulator bands
@@ -156,7 +159,7 @@ function createHeadphoneJackAssembly() {
   band2.position.y = -0.10;
   headphoneJackPlug.add(band2);
 
-  // 2. White Plastic Barrel / Grip
+  // 2. White Plastic Grip Barrel
   const gripMat = new THREE.MeshStandardMaterial({
     color: 0xf7f7fa,
     roughness: 0.25,
@@ -167,7 +170,7 @@ function createHeadphoneJackAssembly() {
   gripMesh.position.y = 0.11;
   headphoneJackPlug.add(gripMesh);
 
-  // 3. Ribbed Rubber Strain Relief Collar
+  // 3. Strain Relief Collar
   const collarGeo = new THREE.CylinderGeometry(0.042, 0.06, 0.12, 16);
   const collarMesh = new THREE.Mesh(collarGeo, gripMat);
   collarMesh.position.y = 0.28;
@@ -178,7 +181,7 @@ function createHeadphoneJackAssembly() {
     new THREE.Vector3(0, 0.34, 0),
     new THREE.Vector3(0.02, 0.55, -0.05),
     new THREE.Vector3(-0.06, 0.85, -0.15),
-    new THREE.Vector3(-0.18, 1.25, -0.3)
+    new THREE.Vector3(-0.18, 1.35, -0.3)
   ]);
   const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.022, 8, false);
   const cableMat = new THREE.MeshStandardMaterial({
@@ -188,20 +191,24 @@ function createHeadphoneJackAssembly() {
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
 
-  // Position hovering directly over the headphone jack opening
+  // Position hovering directly above the headphone jack opening
   headphoneJackPlug.position.set(PLUG_HOLE_X, PLUG_HOVER_Y, PLUG_HOLE_Z);
   scene.add(headphoneJackPlug);
 }
 
-// --- Load Model with Original Materials & Dynamic Screen ---
+// --- Load Model with 10x Scale Fix & Dynamic Screen ---
 function loadIpodModel() {
   const loader = new GLTFLoader();
   const overlay = document.getElementById('loader-overlay');
 
   loader.load('/models/ipod_classic.glb', (gltf) => {
     ipodGroup = gltf.scene;
+
+    // Fix: Sketchfab export scaled it down by 0.1x.
+    // Scale up 10x so height is 2.0 world units!
+    ipodGroup.scale.set(10, 10, 10);
     ipodGroup.rotation.y = -Math.PI / 2;
-    ipodGroup.position.set(0, 0, 0);
+    ipodGroup.position.set(0, IPOD_OFFSET_Y, 0);
 
     const screenMaterial = new THREE.MeshBasicMaterial({
       map: screenTexture
@@ -234,7 +241,7 @@ function loadIpodModel() {
     scene.add(ipodGroup);
 
     overlay.style.opacity = '0';
-    setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    setTimeout(() => { overlay.style.display = 'none'; }, 200);
 
   }, undefined, (error) => {
     console.error('Failed to load iPod model:', error);
@@ -249,13 +256,12 @@ function toggleHeadphonePlug() {
 
   const targetY = isPluggedIn ? PLUG_INSERTED_Y : PLUG_HOVER_Y;
   const startY = headphoneJackPlug.position.y;
-  const duration = 550; // ms
+  const duration = 500;
   const startTime = Date.now();
 
   function animatePlugStep() {
     const elapsed = Date.now() - startTime;
     const t = Math.min(1.0, elapsed / duration);
-    // Smooth easeInOutCubic
     const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     headphoneJackPlug.position.y = THREE.MathUtils.lerp(startY, targetY, ease);
@@ -286,7 +292,7 @@ function toggleHeadphonePlug() {
   animatePlugStep();
 }
 
-// Setup Plug Interaction (Clicking the jack or the hole)
+// Setup Plug Interaction
 function setupPlugInteraction() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -296,7 +302,7 @@ function setupPlugInteraction() {
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    // Check hit against the plug itself
+    // Hit against the plug
     const plugHits = raycaster.intersectObjects(headphoneJackPlug.children, true);
     if (plugHits.length > 0) {
       audioEngine.init();
@@ -304,13 +310,12 @@ function setupPlugInteraction() {
       return;
     }
 
-    // Check hit against the top hole of the iPod
+    // Hit against the top opening of the iPod (y > 0.75 in world coordinates)
     if (ipodGroup) {
       const ipodHits = raycaster.intersectObjects(ipodGroup.children, true);
       if (ipodHits.length > 0) {
         const hit = ipodHits[0];
-        // If clicked on top of iPod near the jack hole (Y > 0.9, |X| < 0.25)
-        if (hit.point.y > 0.9 && Math.abs(hit.point.x) < 0.25) {
+        if (hit.point.y > 0.75 && Math.abs(hit.point.x) < 0.25) {
           audioEngine.init();
           toggleHeadphonePlug();
         }
@@ -329,8 +334,6 @@ function setupDirectClickWheel() {
   let accumulatedAngle = 0;
   let dragStartPoint = new THREE.Vector2();
   let hasDragged = false;
-
-  const WHEEL_CENTER_Y = -0.42;
 
   function getRaycastHit(e) {
     if (!ipodGroup) return null;
@@ -392,7 +395,6 @@ function setupDirectClickWheel() {
     accumulatedAngle += delta;
     lastWheelAngle = currentAngle;
 
-    // ~14 degrees per mechanical click notch
     const notch = Math.PI / 13;
     if (Math.abs(accumulatedAngle) >= notch) {
       const step = delta < 0 ? 1 : -1;
@@ -404,7 +406,7 @@ function setupDirectClickWheel() {
     }
   });
 
-  // Pointer Up: Button clicks if user tapped without rotary dragging
+  // Pointer Up
   window.addEventListener('pointerup', (e) => {
     if (!isWheelDragging) return;
     isWheelDragging = false;
@@ -469,6 +471,10 @@ function setupDirectClickWheel() {
     }
   });
 
+  window.addEventListener('pointercancel', () => {
+    isWheelDragging = false;
+  });
+
   // Direct Mouse Wheel Scroll over the iPod
   window.addEventListener('wheel', (e) => {
     const hit = getRaycastHit(e);
@@ -526,7 +532,7 @@ function animate() {
   // Gentle float on unplugged hovering plug
   if (!isPluggedIn && !isPlugAnimating && headphoneJackPlug) {
     const t = Date.now() * 0.002;
-    headphoneJackPlug.position.y = PLUG_HOVER_Y + Math.sin(t) * 0.015;
+    headphoneJackPlug.position.y = PLUG_HOVER_Y + Math.sin(t) * 0.012;
   }
 
   // Update dynamic LCD screen canvas
