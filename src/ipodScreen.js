@@ -345,9 +345,9 @@ export class iPodScreenRenderer {
       { label: 'Songs', val: `${this.tracks.length}` },
       { label: 'Capacity', val: '80.0 GB' },
       { label: 'Available', val: '74.2 GB' },
-      { label: 'Version', val: '1.2 Simulator' },
-      { label: 'Author', val: 'Bhagyesh Purohit' },
-      { label: 'License', val: 'MIT Open Source' }
+      { label: 'Version', val: '1.4.1' },
+      { label: 'Model', val: 'FeelPod 3D' },
+      { label: 'Format', val: 'Web Audio / HTML5' }
     ];
 
     items.forEach((item, idx) => {

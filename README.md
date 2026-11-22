@@ -1,4 +1,4 @@
-# MP3 Player Simulator 3D
+# FeelPod 3D (MP3 Player Simulator)
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-black?style=flat&logo=three.js)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?style=flat&logo=vite)](https://vitejs.dev/)
@@ -11,6 +11,44 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ## Features
 
+- **Responsive Auto-Framing & Layout Engine**
+  - Camera distance and vertical centering automatically adapt to any screen size (desktop, widescreen, tablet, and mobile portrait).
+  - Preserves breathing room (40px–80px clearance) above the bottom dock and top view so the device, click wheel, and headphone cable are always in view.
+
+- **Real-Life 3.5mm Earphone Plug Tip**
+  - 1:1 physical model based on genuine Apple EarPods:
+    - Mirror-polished nickel/chrome conductor segments (Tip, Ring 1, Ring 2, Sleeve) with high specular reflectivity.
+    - Pure white Delrin insulator rings flush with the metal cylinder.
+    - Machined detent latching groove and smooth bullet/chamfered dome nose.
+    - White polycarbonate cylindrical barrel with seamless silicone strain relief.
+  - Automatically animates into the top jack when headphones are plugged in or detected.
+
+- **Transparent Apple Liquid Glass Settings & Dock**
+  - Settings modal and bottom dock feature frosted glass (`backdrop-filter: blur(48px) saturate(210%)` and `rgba(18, 22, 34, 0.45)`).
+  - Background wallpapers softly blur through modals and navigation bars.
+  - Privacy-first: no personal IDs or email addresses exposed in the interface.
+
+- **Curated Neutral & Premium Color Editions**
+  - **Neutral Classics**:
+    - *Pure Ceramic White* (`#fcfcfd`)
+    - *Anodized Silver* (`#d5d8de`)
+    - *Natural Titanium* (`#c8c3b9`)
+    - *Space Graphite* (`#374151`)
+    - *Matte Obsidian* (`#121316`)
+  - **Premium Pro Editions**:
+    - *Space Gray Pro* (`#4b5563`)
+    - *Desert Champagne* (`#dfd3c3`)
+    - *Pacific Deep Navy* (`#1e293b`)
+    - *Alpine Pine* (`#2d4030`)
+    - *Cabernet Velvet* (`#4a1525`)
+    - *U2 Collector Edition* (Jet Black & Crimson Red)
+  - Custom real-time RGB/Hex color pickers for casing, wheel, and jack.
+
+- **Mobile-Optimized Interface**
+  - Dedicated mobile stylesheet supporting modern smartphone viewports (`100dvh` and safe-area insets).
+  - Compact dock layout prioritizing icons and track status badges.
+  - Scaled touch-target click wheel and popover panels.
+
 - **Embedded Album Cover Art Extraction (ID3v2 APIC)**
   - Native client-side ID3v2 parser extracts attached picture (`APIC`) artwork directly from imported MP3, M4A, and FLAC files.
   - Renders true high-resolution album cover art on the LCD display with subtle rounded corners and glossy glass reflections.
@@ -19,17 +57,6 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 - **Interactive LCD Song Scrubber**
   - Smooth scrubbing and seeking: click or slide directly along the progress bar on the LCD screen to scrub forward and backward in real-time.
   - Real-time timecode updates (elapsed time and remaining time) as you slide.
-
-- **Apple Liquid Glass Bottom Dock**
-  - Sleek, translucent frosted-glass dock anchored at the bottom of the screen (`backdrop-filter: blur(32px) saturate(190%)`).
-  - Completely clears the top space for the animated 3.5mm headphone cable.
-  - High-precision neutral monochrome SVG vector icons and live mini equalizer track pill.
-  - Pure neutral color palette adhering to modern Apple design standards.
-
-- **Dynamic LCD Screen with Dedicated Front Display**
-  - High-DPI canvas texture with authentic pixel-sharp typography, battery indicator, and animated status icons.
-  - Interactive menu hierarchy: `Music`, `Import MP3`, `Extras`, `Settings` (Preferences, About), and `Shuffle Songs`.
-  - Recessed dark LCD bezel border frame.
 
 - **Authentic Concentric Procedural Click Wheel**
   - 100% mathematically aligned, concentric procedural vector click wheel with instant visual button flash feedback.
@@ -43,26 +70,10 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
     - **Right**: Next track
   - Mouse scroll wheel support directly over the player for lightning-fast scrolling.
 
-- **Real Wired Headphone Auto-Connect & White Earphone Tip**
+- **Real Wired Headphone Auto-Connect**
   - **Auto-Connect**: Detects when you connect physical wired headphones or AirPods/Bluetooth to your device (`navigator.mediaDevices`), automatically triggering the 3D jack insertion.
-  - **Authentic Apple EarPods Tip**: Real-life dual white polymer insulator rings separating mirror-polished silver chrome conductors (`Tip`, `Ring 1`, `Ring 2`, `Sleeve`), with white polycarbonate barrel and flexible white cable (zero corrosion look).
   - **Earphone-Driven Audio**: Sound plays only when earphones are plugged in; unplugging immediately pauses and mutes.
   - **Immersive Modal**: Sleek **"Wear Headphones"** popup appears when connecting.
-
-- **Interactive Color Palette & Theme Customizer**
-  - Real-time 3D color customizer with instant presets:
-    - **Classic White**
-    - **Stealth Black**
-    - **U2 Special Edition** (Jet Black Casing & Crimson Red Click Wheel)
-    - **Silver Aluminium**
-    - **Space Gray**
-    - **Pacific Blue**
-    - **Hot Pink**
-    - **Sage Mint**
-    - **Sunset Gold**
-    - **Royal Purple**
-  - Custom color pickers for casing, click wheel, and headphone jack & cable.
-  - Automatically saved to `localStorage`.
 
 - **Comprehensive Simulator Settings**
   - **Reduce Motion**: Toggle to disable floating breathing animations and enable instant transitions.
@@ -70,8 +81,6 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
   - **On-Screen Virtual Wheel**: Toggle an authentic on-screen touch controller in the bottom right corner.
   - **Custom Background Wallpaper**: Upload any custom wallpaper image directly from your local device, with an instant Reset button.
   - **Auto-Plug Real Headphones**: Toggle automatic 3D jack insertion on physical audio device detection.
-  - **Contact Us**: Connect directly with the developer via GitHub and Email.
-  - **About**: Privacy Policy (100% client-side & private), Terms of Use, and MIT License.
 
 - **Import MP3 Feature (Inside UI & Drag-and-Drop)**
   - Direct menu item `Import MP3` on the player screen and bottom dock.
@@ -109,10 +118,7 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ---
 
-## Developer & Contact
+## Project Info
 
-- **Author**: Bhagyesh Purohit
-- **GitHub**: [@PurohitBhagyesh](https://github.com/PurohitBhagyesh)
-- **Email**: Purohitunofficialbhagyesh@gmail.com
 - **Repository**: [https://github.com/PurohitBhagyesh/mp3-player-simulator-3d](https://github.com/PurohitBhagyesh/mp3-player-simulator-3d)
-- **License**: MIT
+- **License**: MIT Open Source

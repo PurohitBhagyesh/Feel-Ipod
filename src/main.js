@@ -18,7 +18,7 @@ const FRONT_FACE_Z = 0.1404;   // Front face depth for screen & click wheel
 const PLUG_HOLE_X = 0;
 const PLUG_HOLE_Z = 0;
 const PLUG_INSERTED_Y = 0.845; // Sits flush on top surface
-const PLUG_HOVER_Y = 1.25;     // Clean hover height with visible headspace
+const PLUG_HOVER_Y = 1.08;     // Natural hover height directly above top hole with visible clearance
 
 let isPluggedIn = false;
 let isPlugAnimating = false;
@@ -36,77 +36,98 @@ const simulatorSettings = {
   customBg: null
 };
 
-// Theme Presets & Current Theme State
+// Theme Presets: Curated Neutral Classics & Luxury Premium Editions
 const THEME_PRESETS = {
+  // Neutral Classics
   white: {
-    casing: '#ffffff',
-    wheel: '#e4e6ea',
-    wheelCenter: '#f4f5f8',
-    wheelText: '#1e293b',
+    name: 'Pure Ceramic',
+    casing: '#fcfcfd',
+    wheel: '#e6e8ec',
+    wheelCenter: '#f8fafc',
+    wheelText: '#0f172a',
     jack: '#ffffff'
-  },
-  stealth: {
-    casing: '#141518',
-    wheel: '#26282e',
-    wheelCenter: '#1b1c20',
-    wheelText: '#f1f5f9',
-    jack: '#141518'
-  },
-  u2: {
-    casing: '#101114',
-    wheel: '#dc2626',
-    wheelCenter: '#101114',
-    wheelText: '#ffffff',
-    jack: '#101114'
   },
   silver: {
-    casing: '#d1d5db',
-    wheel: '#f1f3f6',
-    wheelCenter: '#ffffff',
+    name: 'Anodized Silver',
+    casing: '#d5d8de',
+    wheel: '#eceef2',
+    wheelCenter: '#f8fafc',
     wheelText: '#1e293b',
     jack: '#ffffff'
   },
+  natural: {
+    name: 'Natural Titanium',
+    casing: '#c8c3b9',
+    wheel: '#b8b2a7',
+    wheelCenter: '#d8d3ca',
+    wheelText: '#3c3730',
+    jack: '#c8c3b9'
+  },
+  graphite: {
+    name: 'Space Graphite',
+    casing: '#374151',
+    wheel: '#475569',
+    wheelCenter: '#374151',
+    wheelText: '#f8fafc',
+    jack: '#374151'
+  },
+  stealth: {
+    name: 'Matte Obsidian',
+    casing: '#121316',
+    wheel: '#24262c',
+    wheelCenter: '#18191e',
+    wheelText: '#f8fafc',
+    jack: '#121316'
+  },
+
+  // Premium Pro Editions
   spacegray: {
+    name: 'Space Gray Pro',
     casing: '#4b5563',
     wheel: '#374151',
     wheelCenter: '#4b5563',
-    wheelText: '#ffffff',
+    wheelText: '#f1f5f9',
     jack: '#4b5563'
   },
-  blue: {
-    casing: '#2563eb',
-    wheel: '#dbeafe',
-    wheelCenter: '#eff6ff',
-    wheelText: '#1e3a8a',
-    jack: '#2563eb'
+  desert: {
+    name: 'Desert Champagne',
+    casing: '#dfd3c3',
+    wheel: '#f0eae1',
+    wheelCenter: '#f9f6f0',
+    wheelText: '#52483d',
+    jack: '#dfd3c3'
   },
-  pink: {
-    casing: '#ec4899',
-    wheel: '#fce7f3',
-    wheelCenter: '#fff1f2',
-    wheelText: '#831843',
-    jack: '#ec4899'
+  pacific: {
+    name: 'Pacific Deep Navy',
+    casing: '#1e293b',
+    wheel: '#0f172a',
+    wheelCenter: '#1e293b',
+    wheelText: '#e2e8f0',
+    jack: '#1e293b'
   },
-  mint: {
-    casing: '#10b981',
-    wheel: '#d1fae5',
-    wheelCenter: '#ecfdf5',
-    wheelText: '#064e3b',
-    jack: '#10b981'
+  emerald: {
+    name: 'Alpine Pine',
+    casing: '#2d4030',
+    wheel: '#3c5240',
+    wheelCenter: '#2d4030',
+    wheelText: '#e6f4ea',
+    jack: '#2d4030'
   },
-  gold: {
-    casing: '#f59e0b',
-    wheel: '#fef3c7',
-    wheelCenter: '#fffbeb',
-    wheelText: '#78350f',
-    jack: '#f59e0b'
+  burgundy: {
+    name: 'Cabernet Velvet',
+    casing: '#4a1525',
+    wheel: '#38111d',
+    wheelCenter: '#4a1525',
+    wheelText: '#fae8eb',
+    jack: '#4a1525'
   },
-  purple: {
-    casing: '#8b5cf6',
-    wheel: '#ede9fe',
-    wheelCenter: '#f5f3ff',
-    wheelText: '#4c1d95',
-    jack: '#8b5cf6'
+  u2: {
+    name: 'U2 Collector Edition',
+    casing: '#0a0b0d',
+    wheel: '#dc2626',
+    wheelCenter: '#0a0b0d',
+    wheelText: '#ffffff',
+    jack: '#0a0b0d'
   }
 };
 
@@ -269,17 +290,32 @@ function createDedicatedScreen() {
   scene.add(screenMesh);
 }
 
-// --- Dynamic Camera Framing ---
+// --- Dynamic Camera Framing (Auto-Adjusts Clearance Above Bottom Dock & Header) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
-  if (aspect < 1) {
-    const z = Math.max(4.5, 2.6 / aspect);
-    camera.position.set(0, 0.15, z);
+  let z, y;
+
+  if (aspect < 0.65) {
+    // Tall portrait smartphones (e.g. iPhone, Pixel)
+    z = Math.max(5.15, 2.50 / aspect);
+    y = -0.02;
+  } else if (aspect < 1.0) {
+    // Tablets / square viewports in portrait
+    z = Math.max(4.75, 2.55 / aspect);
+    y = -0.03;
+  } else if (aspect < 1.4) {
+    // Compact laptops / 4:3 and 3:2 displays
+    z = 4.70;
+    y = -0.04;
   } else {
-    camera.position.set(0, 0.15, 4.35);
+    // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
+    z = 4.60;
+    y = -0.04;
   }
+
+  camera.position.set(0, y, z);
   if (controls) {
-    controls.target.set(0, 0.15, 0);
+    controls.target.set(0, y, 0);
     controls.update();
   }
 }
@@ -343,118 +379,127 @@ function createStudioContactShadow() {
   scene.add(shadowMesh);
 }
 
-// --- Authentic Apple Wired Earphone 3.5mm Plug (Precision White & Grey Finish) ---
+// --- Authentic Apple Wired Earphone 3.5mm Plug (Precision Real-Life Finish) ---
 function createHeadphoneJackAssembly() {
   headphoneJackPlug = new THREE.Group();
 
-  // Authentic precision-machined neutral silver/grey chrome metal
+  // Precision-turned mirror-finish stainless steel / nickel conductors
   const chromeMat = new THREE.MeshStandardMaterial({
-    color: 0xd6d9e2,
-    metalness: 0.96,
-    roughness: 0.08
+    color: 0xf4f6fb,
+    metalness: 0.98,
+    roughness: 0.05
   });
 
-  // Authentic Apple Wired EarPods White Polymer Insulator Rings
+  // Authentic Apple Wired EarPods White Delrin Insulator Bands (Flush & Thin)
   const whiteInsulatorMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.18,
-    metalness: 0.02
+    roughness: 0.22,
+    metalness: 0.0
   });
 
-  // Recessed darker steel grey detent latching groove
+  // Precision machined detent latching groove
   const waistMat = new THREE.MeshStandardMaterial({
-    color: 0xb4b8c2,
-    metalness: 0.90,
-    roughness: 0.18
+    color: 0xcfd4de,
+    metalness: 0.94,
+    roughness: 0.09
   });
 
-  // 1. Tapered Bullet Tip
-  const tipDomeGeo = new THREE.SphereGeometry(0.024, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  const R = 0.029; // Uniform outer conductor radius (flush continuous cylinder)
+
+  // 1. Bullet Dome Tip (Conductor)
+  const tipDomeGeo = new THREE.SphereGeometry(R * 0.82, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
   const tipDome = new THREE.Mesh(tipDomeGeo, chromeMat);
-  tipDome.position.y = -0.165;
+  tipDome.position.y = -0.158;
   headphoneJackPlug.add(tipDome);
 
-  const tipConeGeo = new THREE.CylinderGeometry(0.029, 0.024, 0.030, 32);
+  // 2. Chamfered Bullet Nose (Conductor)
+  const tipConeGeo = new THREE.CylinderGeometry(R, R * 0.82, 0.020, 32);
   const tipCone = new THREE.Mesh(tipConeGeo, chromeMat);
-  tipCone.position.y = -0.150;
+  tipCone.position.y = -0.144;
   headphoneJackPlug.add(tipCone);
 
-  // Detent Waist Groove (latching groove)
-  const waistGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.014, 32);
+  // 3. Detent Latching Waist Neck (Groove)
+  const waistGeo = new THREE.CylinderGeometry(R * 0.86, R * 0.86, 0.012, 32);
   const waist = new THREE.Mesh(waistGeo, waistMat);
   waist.position.y = -0.128;
   headphoneJackPlug.add(waist);
 
-  // Insulator Ring 1 (Pure White)
-  const ring1Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  // 4. Waist transition to Ring 1 (Conductor)
+  const waistTransGeo = new THREE.CylinderGeometry(R, R * 0.86, 0.008, 32);
+  const waistTrans = new THREE.Mesh(waistTransGeo, chromeMat);
+  waistTrans.position.y = -0.118;
+  headphoneJackPlug.add(waistTrans);
+
+  // 5. Insulator Band 1 (Pure White Delrin - Flush with metal)
+  const ring1Geo = new THREE.CylinderGeometry(R, R, 0.005, 32);
   const ring1 = new THREE.Mesh(ring1Geo, whiteInsulatorMat);
-  ring1.position.y = -0.117;
+  ring1.position.y = -0.1115;
   headphoneJackPlug.add(ring1);
 
-  // Ring Conductor 1 (Right Audio - Neutral Silver/Grey)
-  const ringConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.032, 32);
-  const ringConductor = new THREE.Mesh(ringConductorGeo, chromeMat);
-  ringConductor.position.y = -0.096;
-  headphoneJackPlug.add(ringConductor);
+  // 6. Ring 1 Conductor (Right Audio - Neutral Polished Silver)
+  const ring1ConductorGeo = new THREE.CylinderGeometry(R, R, 0.024, 32);
+  const ring1Conductor = new THREE.Mesh(ring1ConductorGeo, chromeMat);
+  ring1Conductor.position.y = -0.097;
+  headphoneJackPlug.add(ring1Conductor);
 
-  // Insulator Ring 2 (Pure White)
-  const ring2Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  // 7. Insulator Band 2 (Pure White Delrin - Flush with metal)
+  const ring2Geo = new THREE.CylinderGeometry(R, R, 0.005, 32);
   const ring2 = new THREE.Mesh(ring2Geo, whiteInsulatorMat);
-  ring2.position.y = -0.076;
+  ring2.position.y = -0.0825;
   headphoneJackPlug.add(ring2);
 
-  // Ring Conductor 2 (Ground - Neutral Silver/Grey)
-  const ring2ConductorGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.025, 32);
+  // 8. Ring 2 Conductor (Ground - Neutral Polished Silver)
+  const ring2ConductorGeo = new THREE.CylinderGeometry(R, R, 0.024, 32);
   const ring2Conductor = new THREE.Mesh(ring2ConductorGeo, chromeMat);
-  ring2Conductor.position.y = -0.058;
+  ring2Conductor.position.y = -0.068;
   headphoneJackPlug.add(ring2Conductor);
 
-  // Insulator Ring 3 (Pure White)
-  const ring3Geo = new THREE.CylinderGeometry(0.0305, 0.0305, 0.007, 32);
+  // 9. Insulator Band 3 (Pure White Delrin - Flush with metal)
+  const ring3Geo = new THREE.CylinderGeometry(R, R, 0.005, 32);
   const ring3 = new THREE.Mesh(ring3Geo, whiteInsulatorMat);
-  ring3.position.y = -0.041;
+  ring3.position.y = -0.0535;
   headphoneJackPlug.add(ring3);
 
-  // Sleeve Conductor (Mic / Control - Neutral Silver/Grey)
-  const sleeveGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.030, 32);
+  // 10. Sleeve Conductor (Base Shaft - Neutral Polished Silver)
+  const sleeveGeo = new THREE.CylinderGeometry(R, R, 0.038, 32);
   const sleeve = new THREE.Mesh(sleeveGeo, chromeMat);
-  sleeve.position.y = -0.022;
+  sleeve.position.y = -0.032;
   headphoneJackPlug.add(sleeve);
 
-  // Polished chrome collar transition
-  const collarBevelGeo = new THREE.CylinderGeometry(0.035, 0.030, 0.008, 32);
+  // 11. Subtle chamfered chrome collar at base of barrel
+  const collarBevelGeo = new THREE.CylinderGeometry(R * 1.15, R, 0.008, 32);
   const collarBevel = new THREE.Mesh(collarBevelGeo, chromeMat);
-  collarBevel.position.y = -0.004;
+  collarBevel.position.y = -0.009;
   headphoneJackPlug.add(collarBevel);
 
-  // 2. White Polycarbonate Grip Barrel
+  // 12. White Polycarbonate Grip Barrel (Apple EarPods cylindrical body)
   const gripMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(currentTheme.jack),
-    roughness: 0.18,
+    roughness: 0.12,
     metalness: 0.02
   });
-  const gripGeo = new THREE.CylinderGeometry(0.058, 0.058, 0.22, 32);
+  const gripGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.22, 32);
   gripMesh = new THREE.Mesh(gripGeo, gripMat);
-  gripMesh.position.y = 0.11;
+  gripMesh.position.y = 0.105;
   headphoneJackPlug.add(gripMesh);
 
-  // 3. Strain Relief Collar
-  const reliefGeo = new THREE.CylinderGeometry(0.038, 0.056, 0.10, 24);
+  // 13. Tapered Silicone Strain Relief Collar
+  const reliefGeo = new THREE.CylinderGeometry(0.032, 0.050, 0.10, 24);
   const reliefMesh = new THREE.Mesh(reliefGeo, gripMat);
-  reliefMesh.position.y = 0.26;
+  reliefMesh.position.y = 0.255;
   headphoneJackPlug.add(reliefMesh);
 
-  // 4. Smooth Earphone Cable extending upward into studio space
+  // 14. Smooth Earphone Cable extending upward into studio space
   const cableCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0.31, 0),
-    new THREE.Vector3(0.02, 0.55, -0.05),
-    new THREE.Vector3(-0.06, 0.85, -0.15),
-    new THREE.Vector3(-0.18, 1.35, -0.3)
+    new THREE.Vector3(0, 0.305, 0),
+    new THREE.Vector3(0.015, 0.50, -0.04),
+    new THREE.Vector3(-0.04, 0.75, -0.12),
+    new THREE.Vector3(-0.12, 1.20, -0.25)
   ]);
-  const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.022, 8, false);
+  const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.020, 8, false);
   const cableMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(currentTheme.jack),
-    roughness: 0.35
+    roughness: 0.30
   });
   earphoneCableLine = new THREE.Mesh(cableGeo, cableMat);
   headphoneJackPlug.add(earphoneCableLine);
