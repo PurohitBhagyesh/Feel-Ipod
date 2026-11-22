@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Feel iPod - Interactive 3D Experience & Customizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Feel iPod - Let's Feel the iPod Nostalgic</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <!-- 3D WebGL Canvas Container -->
+  <!-- 3D WebGL Canvas -->
   <div id="canvas-container"></div>
 
   <!-- Loading Screen -->
@@ -16,33 +16,68 @@
     <div class="loader-text" id="loader-status">Loading iPod Classic & Wired Earphones...</div>
   </div>
 
-  <!-- Top Navigation Bar -->
-  <header class="navbar">
+  <!-- Welcome / Nostalgia Landing Screen -->
+  <div id="welcome-screen" class="welcome-overlay">
+    <div class="welcome-content">
+      <div class="welcome-badge"> Retro Experience</div>
+      <h1 class="welcome-title">Let's feel the iPod nostalgic</h1>
+      <p class="welcome-subtitle">
+        1,000 songs in your pocket. Touch the iconic click wheel, customize your classic colorway, and relive the tactile magic.
+      </p>
+      
+      <div class="welcome-buttons">
+        <button id="btn-feel-it" class="btn-welcome primary">
+          <span>✨</span> Feel It
+        </button>
+        <button id="btn-welcome-settings" class="btn-welcome secondary">
+          <span>⚙️</span> Settings
+        </button>
+      </div>
+
+      <div class="welcome-features">
+        <div class="feature-tag">🎧 Wired Earbuds</div>
+        <div class="feature-tag">🔊 Authentic Clicker</div>
+        <div class="feature-tag">🎨 Color Customizer</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Screen Header Bar -->
+  <header class="navbar" id="main-navbar">
     <div class="brand">
       <div class="brand-icon"></div>
       <h1>Feel iPod</h1>
-      <span>Classic 3D</span>
+      <span class="desktop-only">Classic 3D</span>
     </div>
     <div class="nav-actions">
-      <button class="btn-icon" id="btn-toggle-sound">
-        <span id="sound-icon">🔊</span> Sound On
+      <button class="btn-icon" id="btn-home" title="Back to Welcome">
+        <span>🏠</span> <span class="desktop-only">Home</span>
       </button>
-      <button class="btn-icon" id="btn-reset-view">
-        <span>🔄</span> Reset
+      <button class="btn-icon" id="btn-toggle-sound">
+        <span id="sound-icon">🔊</span> <span class="desktop-only">Sound On</span>
+      </button>
+      <button class="btn-icon" id="btn-open-settings" title="Settings">
+        <span>⚙️</span> <span class="desktop-only">Settings</span>
+      </button>
+      <button class="btn-icon" id="btn-reset-view" title="Reset View">
+        <span>🔄</span> <span class="desktop-only">Reset</span>
       </button>
     </div>
   </header>
 
   <!-- Interactive 3D Hint -->
-  <div class="interactive-hint">
-    ✨ Drag to rotate 3D iPod • Scroll wheel on iPod to browse
+  <div class="interactive-hint desktop-only">
+    ✨ Drag anywhere to orbit 3D iPod • Scroll wheel on iPod to browse
   </div>
 
-  <!-- Left Color Customizer & Redesign Panel -->
-  <aside class="customizer-panel">
+  <!-- Left Color Customizer & Redesign Panel (Desktop & Mobile Drawer) -->
+  <aside class="customizer-panel" id="customizer-panel">
     <div class="panel-header">
-      <h2>Color Studio</h2>
-      <span style="font-size: 0.75rem; color: var(--text-muted);">Real-Time</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2>Color Studio</h2>
+        <span class="live-pill">Live</span>
+      </div>
+      <button class="close-panel-btn mobile-only" id="btn-close-customizer">✕</button>
     </div>
 
     <!-- Target Selector -->
@@ -56,7 +91,7 @@
     <!-- Circular Color Wheel -->
     <div class="color-wheel-wrapper">
       <div class="wheel-canvas-container" id="wheel-container">
-        <canvas id="color-wheel-canvas" width="190" height="190"></canvas>
+        <canvas id="color-wheel-canvas" width="180" height="180"></canvas>
         <div class="wheel-handle" id="wheel-handle"></div>
       </div>
 
@@ -111,8 +146,8 @@
     </div>
   </aside>
 
-  <!-- Interactive Click Wheel Floating Controller (Bottom Right) -->
-  <div class="clickwheel-controller">
+  <!-- Interactive Click Wheel Controller -->
+  <div class="clickwheel-controller" id="clickwheel-controller">
     <div class="wheel-outer" id="virtual-wheel">
       <button class="wheel-btn btn-menu" id="ctrl-menu">MENU</button>
       <button class="wheel-btn btn-prev" id="ctrl-prev">|◀◀</button>
@@ -122,15 +157,109 @@
     </div>
   </div>
 
-  <!-- Bottom Camera View Presets -->
-  <div class="scene-dock">
-    <button class="dock-btn active" data-view="studio">Studio View</button>
+  <!-- Bottom Camera View Presets (Desktop) -->
+  <div class="scene-dock desktop-only">
+    <button class="dock-btn active" data-view="studio">Studio</button>
     <div class="divider"></div>
     <button class="dock-btn" data-view="front">Front (Screen)</button>
     <div class="divider"></div>
     <button class="dock-btn" data-view="back">Back (Chrome)</button>
     <div class="divider"></div>
     <button class="dock-btn" data-view="earphones">Earphones</button>
+  </div>
+
+  <!-- Mobile Bottom Action Bar -->
+  <nav class="mobile-action-bar mobile-only">
+    <button class="mobile-nav-btn active" id="btn-mobile-colors">
+      <span class="icon">🎨</span>
+      <span class="label">Colors</span>
+    </button>
+    <button class="mobile-nav-btn" id="btn-mobile-wheel">
+      <span class="icon">🎛️</span>
+      <span class="label">Wheel</span>
+    </button>
+    <button class="mobile-nav-btn" id="btn-mobile-views">
+      <span class="icon">👁️</span>
+      <span class="label">Angles</span>
+    </button>
+    <button class="mobile-nav-btn" id="btn-mobile-play">
+      <span class="icon" id="mobile-play-icon">▶️</span>
+      <span class="label">Play</span>
+    </button>
+  </nav>
+
+  <!-- Settings Modal Dialog -->
+  <div id="settings-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.2rem;">⚙️</span>
+          <h3>iPod Settings & Preferences</h3>
+        </div>
+        <button class="close-modal-btn" id="btn-close-settings">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Mechanical Click Sound</div>
+            <div class="setting-desc">Authentic piezo sound when spinning the wheel</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-clicker" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Haptic Feedback</div>
+            <div class="setting-desc">Vibrate device on scroll ticks (mobile only)</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-haptics" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Turntable Showcase Auto-Rotate</div>
+            <div class="setting-desc">Slowly rotate the iPod for museum exhibit view</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-autorotate">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Show Wired Earphones</div>
+            <div class="setting-desc">Display the classic white earbuds next to iPod</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-earphones" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-title">Stage Lighting</div>
+            <div class="setting-desc">Dark Studio vs Bright Apple Keynote</div>
+          </div>
+          <select id="setting-theme" class="select-input">
+            <option value="dark">Dark Studio</option>
+            <option value="keynote">Keynote Stage</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-primary-modal" id="btn-save-settings">Done</button>
+      </div>
+    </div>
   </div>
 
   <!-- Main JavaScript Entrypoint -->

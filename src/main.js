@@ -16,14 +16,26 @@ let currentHue = 0;
 let currentSat = 0;
 let currentLight = 0.90;
 
+// Settings State
+let settings = {
+  soundEnabled: true,
+  hapticsEnabled: true,
+  autoRotate: false,
+  showEarphones: true,
+  theme: 'dark'
+};
+
 const cameraTargets = {
+  cinematic: { pos: new THREE.Vector3(0, 0.4, 4.2), target: new THREE.Vector3(0, 0, 0) },
   studio: { pos: new THREE.Vector3(1.8, 1.4, 2.8), target: new THREE.Vector3(0, 0, 0) },
   front: { pos: new THREE.Vector3(0, 0.1, 3.0), target: new THREE.Vector3(0, 0, 0) },
   back: { pos: new THREE.Vector3(0, 0.1, -3.0), target: new THREE.Vector3(0, 0, 0) },
   earphones: { pos: new THREE.Vector3(-1.8, 0.8, 1.2), target: new THREE.Vector3(-1.0, -0.2, 0.2) }
 };
 
-let activeCamTarget = cameraTargets.studio;
+let activeCamTarget = cameraTargets.cinematic;
+let currentViewIndex = 0;
+const viewKeys = ['studio', 'front', 'back', 'earphones'];
 
 // --- Initialize Scene ---
 function init() {
@@ -36,7 +48,7 @@ function init() {
 
   // Camera
   camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 50);
-  camera.position.copy(cameraTargets.studio.pos);
+  camera.position.copy(cameraTargets.cinematic.pos);
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -54,11 +66,14 @@ function init() {
   controls.dampingFactor = 0.05;
   controls.minDistance = 1.2;
   controls.maxDistance = 6.0;
-  controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't flip below floor
-  controls.target.copy(cameraTargets.studio.target);
+  controls.maxPolarAngle = Math.PI / 2 + 0.05;
+  controls.target.copy(cameraTargets.cinematic.target);
+  controls.autoRotate = false;
+  controls.autoRotateSpeed = 1.2;
 
-  // Lighting
+  // Setup Lighting & Stage
   setupLighting();
+  createFloor();
 
   // Screen Engine
   screenRenderer = new iPodScreenRenderer();
@@ -67,17 +82,16 @@ function init() {
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  // Floor Shadow Plane
-  createFloor();
-
-  // Load Models
+  // Load 3D Models
   loadModels();
 
-  // UI & Color Wheel Setup
+  // Color Wheel & Navigation
   setupColorWheel();
   setupUI();
+  setupSettings();
+  setupWelcomeScreen();
 
-  // Event Listeners
+  // Responsive Resizing
   window.addEventListener('resize', onWindowResize);
 
   // Animation Loop
@@ -86,11 +100,9 @@ function init() {
 
 // --- Lighting ---
 function setupLighting() {
-  // Ambient Light
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
   scene.add(ambientLight);
 
-  // Key Spotlight (Casts sharp Apple-like highlights)
   const keyLight = new THREE.SpotLight(0xffffff, 4.5);
   keyLight.position.set(3, 5, 4);
   keyLight.angle = Math.PI / 4;
@@ -101,23 +113,20 @@ function setupLighting() {
   keyLight.shadow.bias = -0.0001;
   scene.add(keyLight);
 
-  // Cool Fill Light from left
   const fillLight = new THREE.DirectionalLight(0xddeeff, 1.8);
   fillLight.position.set(-4, 3, 2);
   scene.add(fillLight);
 
-  // Warm Rim Light from back
   const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
   rimLight.position.set(0, 4, -4);
   scene.add(rimLight);
 
-  // Subtle bottom bounce light
   const bounceLight = new THREE.DirectionalLight(0x223344, 0.8);
   bounceLight.position.set(0, -2, 0);
   scene.add(bounceLight);
 }
 
-// --- Floor with subtle reflection ---
+// --- Stage Floor ---
 function createFloor() {
   const floorGeo = new THREE.PlaneGeometry(20, 20);
   const floorMat = new THREE.MeshStandardMaterial({
@@ -131,7 +140,7 @@ function createFloor() {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Soft contact shadow circle beneath iPod
+  // Contact shadow
   const shadowGeo = new THREE.PlaneGeometry(2.4, 3.6);
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -168,12 +177,9 @@ function loadModels() {
   // 1. Load iPod
   loader.load('/models/ipod_classic.glb', (gltf) => {
     ipodGroup = gltf.scene;
-
-    // The iPod model has +X as front. Rotate Y by -90 deg so +Z faces camera (standard front)
     ipodGroup.rotation.y = -Math.PI / 2;
     ipodGroup.position.set(0, 0, 0);
 
-    // Create distinct materials for customization
     bodyMaterial = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(currentColorHex),
       metalness: 0.05,
@@ -200,7 +206,6 @@ function loadModels() {
       map: screenTexture
     });
 
-    // Traverse and assign materials
     ipodGroup.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
@@ -210,14 +215,10 @@ function loadModels() {
         const name = child.name || '';
 
         if (parentName.includes('Screen') || name.includes('Screen')) {
-          // Dynamic LCD Screen
           child.material = screenMaterial;
         } else if (parentName.includes('body')) {
-          // The body mesh has the faceplate & clickwheel
-          // In Three.js, we apply bodyMaterial with clearcoat
           child.material = bodyMaterial;
         } else if (parentName.includes('Switch') || parentName.includes('Port') || parentName.includes('jack')) {
-          // Metal accents (Hold switch, 30-pin, 3.5mm jack)
           child.material = backMaterial;
         } else {
           child.material = bodyMaterial;
@@ -246,20 +247,16 @@ function loadModels() {
         }
       });
 
-      // Position the earphones gracefully on the table beside the iPod
       earphonesGroup.scale.set(6.5, 6.5, 6.5);
       earphonesGroup.position.set(-1.0, -1.0, 0.4);
       earphonesGroup.rotation.set(-Math.PI / 2, 0, Math.PI / 5);
 
       scene.add(earphonesGroup);
 
-      // Hide loading screen
       overlay.style.opacity = '0';
-      setTimeout(() => {
-        overlay.style.display = 'none';
-      }, 500);
+      setTimeout(() => { overlay.style.display = 'none'; }, 500);
     }, undefined, (err) => {
-      console.warn('Earphones load error, proceeding with iPod:', err);
+      console.warn('Earphones load error:', err);
       overlay.style.opacity = '0';
       setTimeout(() => { overlay.style.display = 'none'; }, 500);
     });
@@ -273,6 +270,107 @@ function loadModels() {
     statusEl.textContent = 'Failed to load model. Check console.';
     console.error(error);
   });
+}
+
+// --- Welcome Screen Logic ---
+function setupWelcomeScreen() {
+  const welcomeOverlay = document.getElementById('welcome-screen');
+  const feelItBtn = document.getElementById('btn-feel-it');
+  const welcomeSettingsBtn = document.getElementById('btn-welcome-settings');
+  const homeBtn = document.getElementById('btn-home');
+
+  feelItBtn.addEventListener('click', () => {
+    audioEngine.init();
+    if (settings.soundEnabled) {
+      audioEngine.playDriveSpinUp();
+      audioEngine.playClick();
+    }
+
+    // Hide welcome overlay
+    welcomeOverlay.classList.add('hidden');
+
+    // Smooth transition camera to studio view
+    activeCamTarget = cameraTargets.studio;
+  });
+
+  welcomeSettingsBtn.addEventListener('click', () => {
+    openSettingsModal();
+  });
+
+  homeBtn.addEventListener('click', () => {
+    welcomeOverlay.classList.remove('hidden');
+    activeCamTarget = cameraTargets.cinematic;
+    audioEngine.playButtonPress();
+  });
+}
+
+// --- Settings Dialog Logic ---
+function setupSettings() {
+  const modal = document.getElementById('settings-modal');
+  const openBtn = document.getElementById('btn-open-settings');
+  const closeBtn = document.getElementById('btn-close-settings');
+  const saveBtn = document.getElementById('btn-save-settings');
+
+  const clickerToggle = document.getElementById('setting-clicker');
+  const hapticsToggle = document.getElementById('setting-haptics');
+  const autorotateToggle = document.getElementById('setting-autorotate');
+  const earphonesToggle = document.getElementById('setting-earphones');
+  const themeSelect = document.getElementById('setting-theme');
+
+  openBtn.addEventListener('click', openSettingsModal);
+  closeBtn.addEventListener('click', closeSettingsModal);
+  saveBtn.addEventListener('click', closeSettingsModal);
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeSettingsModal();
+  });
+
+  clickerToggle.addEventListener('change', (e) => {
+    settings.soundEnabled = e.target.checked;
+    updateSoundBtnState();
+  });
+
+  hapticsToggle.addEventListener('change', (e) => {
+    settings.hapticsEnabled = e.target.checked;
+  });
+
+  autorotateToggle.addEventListener('change', (e) => {
+    settings.autoRotate = e.target.checked;
+    controls.autoRotate = settings.autoRotate;
+  });
+
+  earphonesToggle.addEventListener('change', (e) => {
+    settings.showEarphones = e.target.checked;
+    if (earphonesGroup) {
+      earphonesGroup.visible = settings.showEarphones;
+    }
+  });
+
+  themeSelect.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    if (settings.theme === 'keynote') {
+      scene.background.set(0x1a1a24);
+      scene.fog.color.set(0x1a1a24);
+    } else {
+      scene.background.set(0x0a0a0c);
+      scene.fog.color.set(0x0a0a0c);
+    }
+  });
+}
+
+function openSettingsModal() {
+  audioEngine.playButtonPress();
+  document.getElementById('settings-modal').classList.add('active');
+}
+
+function closeSettingsModal() {
+  audioEngine.playButtonPress();
+  document.getElementById('settings-modal').classList.remove('active');
+}
+
+function updateSoundBtnState() {
+  const soundIcon = document.getElementById('sound-icon');
+  soundIcon.textContent = settings.soundEnabled ? '🔊' : '🔇';
 }
 
 // --- Interactive Circular Color Wheel ---
@@ -289,7 +387,6 @@ function setupColorWheel() {
   const height = canvas.height;
   const radius = width / 2;
 
-  // Render the circular color wheel
   function drawWheel() {
     const imgData = ctx.createImageData(width, height);
     const data = imgData.data;
@@ -302,11 +399,10 @@ function setupColorWheel() {
         const idx = (y * width + x) * 4;
 
         if (dist <= radius) {
-          // Angle in degrees [0, 360]
           let angle = Math.atan2(dy, dx) * (180 / Math.PI);
           if (angle < 0) angle += 360;
 
-          const sat = dist / radius; // [0, 1]
+          const sat = dist / radius;
           const rgb = hslToRgb(angle / 360, sat, currentLight);
 
           data[idx] = rgb[0];
@@ -314,7 +410,7 @@ function setupColorWheel() {
           data[idx + 2] = rgb[2];
           data[idx + 3] = 255;
         } else {
-          data[idx + 3] = 0; // Transparent outside circle
+          data[idx + 3] = 0;
         }
       }
     }
@@ -323,7 +419,6 @@ function setupColorWheel() {
 
   drawWheel();
 
-  // Handle color picking
   function handlePick(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -343,7 +438,6 @@ function setupColorWheel() {
     currentHue = angle / 360;
     currentSat = clampedDist / maxR;
 
-    // Position handle
     const handleX = (rect.width / 2) + Math.cos(angle * Math.PI / 180) * clampedDist;
     const handleY = (rect.height / 2) + Math.sin(angle * Math.PI / 180) * clampedDist;
     handle.style.left = `${handleX}px`;
@@ -362,11 +456,8 @@ function setupColorWheel() {
   window.addEventListener('mousemove', (e) => {
     if (isDragging) handlePick(e);
   });
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
-  });
+  window.addEventListener('mouseup', () => { isDragging = false; });
 
-  // Touch support for color wheel
   container.addEventListener('touchstart', (e) => {
     isDragging = true;
     handlePick(e);
@@ -378,11 +469,8 @@ function setupColorWheel() {
       e.preventDefault();
     }
   }, { passive: false });
-  window.addEventListener('touchend', () => {
-    isDragging = false;
-  });
+  window.addEventListener('touchend', () => { isDragging = false; });
 
-  // Lightness Slider
   lightnessSlider.addEventListener('input', (e) => {
     currentLight = parseInt(e.target.value) / 100;
     lightnessLabel.textContent = `${e.target.value}%`;
@@ -392,7 +480,6 @@ function setupColorWheel() {
     applyColor(hex);
   });
 
-  // Native Color Picker input
   nativeColorInput.addEventListener('input', (e) => {
     applyColor(e.target.value);
   });
@@ -421,7 +508,7 @@ function applyColor(hex) {
   }
 }
 
-// --- UI Controls & Click Wheel ---
+// --- UI Controls & Mobile Navigation ---
 function setupUI() {
   // Target segment buttons
   const segmentBtns = document.querySelectorAll('.segment-btn');
@@ -430,7 +517,7 @@ function setupUI() {
       segmentBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentTarget = btn.dataset.target;
-      audioEngine.playButtonPress();
+      if (settings.soundEnabled) audioEngine.playButtonPress();
     });
   });
 
@@ -439,10 +526,10 @@ function setupUI() {
   presetChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       const col = chip.dataset.color;
-      audioEngine.playClick();
+      if (settings.soundEnabled) audioEngine.playClick();
 
       if (col === '#111111') {
-        // Special U2 Edition: Black body + Red wheel!
+        // U2 Edition: Black body + Red wheel
         if (bodyMaterial) bodyMaterial.color.set('#111111');
         if (wheelMaterial) wheelMaterial.color.set('#cc0000');
         if (earphoneMaterial) earphoneMaterial.color.set('#1a1a1a');
@@ -453,7 +540,7 @@ function setupUI() {
     });
   });
 
-  // Camera views
+  // Camera views (Desktop dock)
   const dockBtns = document.querySelectorAll('.dock-btn');
   dockBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -462,7 +549,7 @@ function setupUI() {
       const viewKey = btn.dataset.view;
       if (cameraTargets[viewKey]) {
         activeCamTarget = cameraTargets[viewKey];
-        audioEngine.playButtonPress();
+        if (settings.soundEnabled) audioEngine.playButtonPress();
       }
     });
   });
@@ -471,21 +558,83 @@ function setupUI() {
   document.getElementById('btn-reset-view').addEventListener('click', () => {
     activeCamTarget = cameraTargets.studio;
     document.querySelectorAll('.dock-btn').forEach((b) => b.classList.remove('active'));
-    document.querySelector('.dock-btn[data-view="studio"]').classList.add('active');
-    audioEngine.playButtonPress();
+    const studioBtn = document.querySelector('.dock-btn[data-view="studio"]');
+    if (studioBtn) studioBtn.classList.add('active');
+    if (settings.soundEnabled) audioEngine.playButtonPress();
   });
 
-  // Sound Toggle
-  let soundEnabled = true;
+  // Sound Toggle on Navbar
   const soundBtn = document.getElementById('btn-toggle-sound');
-  const soundIcon = document.getElementById('sound-icon');
   soundBtn.addEventListener('click', () => {
-    soundEnabled = !soundEnabled;
-    soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
-    soundBtn.innerHTML = `<span>${soundIcon.textContent}</span> Sound ${soundEnabled ? 'On' : 'Muted'}`;
+    settings.soundEnabled = !settings.soundEnabled;
+    updateSoundBtnState();
+    document.getElementById('setting-clicker').checked = settings.soundEnabled;
   });
 
-  // Interactive Click Wheel Floating Controller
+  // Mobile Action Bar buttons
+  const customizerPanel = document.getElementById('customizer-panel');
+  const clickwheelController = document.getElementById('clickwheel-controller');
+  const btnMobileColors = document.getElementById('btn-mobile-colors');
+  const btnMobileWheel = document.getElementById('btn-mobile-wheel');
+  const btnMobileViews = document.getElementById('btn-mobile-views');
+  const btnMobilePlay = document.getElementById('btn-mobile-play');
+  const btnCloseCustomizer = document.getElementById('btn-close-customizer');
+
+  if (btnMobileColors) {
+    btnMobileColors.addEventListener('click', () => {
+      const isActive = customizerPanel.classList.toggle('mobile-active');
+      btnMobileColors.classList.toggle('active', isActive);
+      if (isActive) {
+        clickwheelController.classList.remove('mobile-active');
+        btnMobileWheel.classList.remove('active');
+      }
+      if (settings.soundEnabled) audioEngine.playButtonPress();
+    });
+  }
+
+  if (btnCloseCustomizer) {
+    btnCloseCustomizer.addEventListener('click', () => {
+      customizerPanel.classList.remove('mobile-active');
+      btnMobileColors.classList.remove('active');
+    });
+  }
+
+  if (btnMobileWheel) {
+    btnMobileWheel.addEventListener('click', () => {
+      const isActive = clickwheelController.classList.toggle('mobile-active');
+      btnMobileWheel.classList.toggle('active', isActive);
+      if (isActive) {
+        customizerPanel.classList.remove('mobile-active');
+        btnMobileColors.classList.remove('active');
+      }
+      if (settings.soundEnabled) audioEngine.playButtonPress();
+    });
+  }
+
+  if (btnMobileViews) {
+    btnMobileViews.addEventListener('click', () => {
+      currentViewIndex = (currentViewIndex + 1) % viewKeys.length;
+      const key = viewKeys[currentViewIndex];
+      activeCamTarget = cameraTargets[key];
+      if (settings.soundEnabled) audioEngine.playButtonPress();
+    });
+  }
+
+  if (btnMobilePlay) {
+    btnMobilePlay.addEventListener('click', () => {
+      const isPlaying = audioEngine.toggleMusic();
+      screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+      screenTexture.needsUpdate = true;
+      document.getElementById('mobile-play-icon').textContent = isPlaying ? '⏸️' : '▶️';
+    });
+  }
+
+  // Virtual Click Wheel Logic
+  setupClickWheelInteraction();
+}
+
+// --- Virtual Click Wheel Interaction ---
+function setupClickWheelInteraction() {
   const wheel = document.getElementById('virtual-wheel');
   let isWheelDragging = false;
   let lastAngle = 0;
@@ -500,49 +649,7 @@ function setupUI() {
     return Math.atan2(clientY - cy, clientX - cx);
   }
 
-  wheel.addEventListener('mousedown', (e) => {
-    // Only drag on outer wheel, not buttons
-    if (e.target.classList.contains('wheel-btn') || e.target.classList.contains('wheel-center-btn')) return;
-    isWheelDragging = true;
-    lastAngle = getWheelAngle(e);
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isWheelDragging) return;
-    const currentAngle = getWheelAngle(e);
-    let delta = currentAngle - lastAngle;
-
-    // Normalize wrap around [-PI, PI]
-    if (delta > Math.PI) delta -= Math.PI * 2;
-    if (delta < -Math.PI) delta += Math.PI * 2;
-
-    accumulatedAngle += delta;
-    lastAngle = currentAngle;
-
-    const notch = Math.PI / 12; // ~15 degrees per notch
-    if (Math.abs(accumulatedAngle) >= notch) {
-      const step = Math.sign(accumulatedAngle);
-      accumulatedAngle = 0;
-      audioEngine.playClick();
-      screenRenderer.scroll(step);
-      screenTexture.needsUpdate = true;
-    }
-  });
-
-  window.addEventListener('mouseup', () => {
-    isWheelDragging = false;
-  });
-
-  // Touch wheel events
-  wheel.addEventListener('touchstart', (e) => {
-    if (e.target.classList.contains('wheel-btn') || e.target.classList.contains('wheel-center-btn')) return;
-    isWheelDragging = true;
-    lastAngle = getWheelAngle(e);
-  }, { passive: true });
-
-  window.addEventListener('touchmove', (e) => {
-    if (!isWheelDragging) return;
-    const currentAngle = getWheelAngle(e);
+  function onWheelMove(currentAngle) {
     let delta = currentAngle - lastAngle;
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
@@ -554,25 +661,47 @@ function setupUI() {
     if (Math.abs(accumulatedAngle) >= notch) {
       const step = Math.sign(accumulatedAngle);
       accumulatedAngle = 0;
-      audioEngine.playClick();
+      if (settings.soundEnabled) audioEngine.playClick();
       screenRenderer.scroll(step);
       screenTexture.needsUpdate = true;
     }
+  }
+
+  wheel.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('wheel-btn') || e.target.classList.contains('wheel-center-btn')) return;
+    isWheelDragging = true;
+    lastAngle = getWheelAngle(e);
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isWheelDragging) return;
+    onWheelMove(getWheelAngle(e));
+  });
+
+  window.addEventListener('mouseup', () => { isWheelDragging = false; });
+
+  wheel.addEventListener('touchstart', (e) => {
+    if (e.target.classList.contains('wheel-btn') || e.target.classList.contains('wheel-center-btn')) return;
+    isWheelDragging = true;
+    lastAngle = getWheelAngle(e);
   }, { passive: true });
 
-  window.addEventListener('touchend', () => {
-    isWheelDragging = false;
-  });
+  window.addEventListener('touchmove', (e) => {
+    if (!isWheelDragging) return;
+    onWheelMove(getWheelAngle(e));
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => { isWheelDragging = false; });
 
   // Buttons: MENU, Center Select, Play/Pause, Next, Prev
   document.getElementById('ctrl-menu').addEventListener('click', () => {
-    audioEngine.playButtonPress();
+    if (settings.soundEnabled) audioEngine.playButtonPress();
     screenRenderer.goBack();
     screenTexture.needsUpdate = true;
   });
 
   document.getElementById('ctrl-center').addEventListener('click', () => {
-    audioEngine.playButtonPress();
+    if (settings.soundEnabled) audioEngine.playButtonPress();
     screenRenderer.selectCurrent();
     screenTexture.needsUpdate = true;
   });
@@ -581,6 +710,8 @@ function setupUI() {
     const isPlaying = audioEngine.toggleMusic();
     screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
     screenTexture.needsUpdate = true;
+    const mobileIcon = document.getElementById('mobile-play-icon');
+    if (mobileIcon) mobileIcon.textContent = isPlaying ? '⏸️' : '▶️';
   });
 
   document.getElementById('ctrl-next').addEventListener('click', () => {
@@ -609,13 +740,13 @@ function animate() {
   // Update Controls
   controls.update();
 
-  // Subtle floating idle motion for the iPod
+  // Subtle floating motion
   if (ipodGroup) {
     const t = Date.now() * 0.001;
     ipodGroup.position.y = Math.sin(t * 1.2) * 0.02;
   }
 
-  // Screen update if needed
+  // Screen update
   if (screenRenderer.render()) {
     screenTexture.needsUpdate = true;
   }
@@ -630,11 +761,11 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// --- Helper Functions: HSL / RGB / Hex ---
+// --- Helpers: HSL / RGB / Hex ---
 function hslToRgb(h, s, l) {
   let r, g, b;
   if (s === 0) {
-    r = g = b = l; // achromatic
+    r = g = b = l;
   } else {
     const hue2rgb = (p, q, t) => {
       if (t < 0) t += 1;

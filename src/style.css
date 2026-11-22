@@ -1,11 +1,12 @@
 :root {
   --bg-primary: #0a0a0c;
-  --bg-card: rgba(26, 26, 30, 0.75);
-  --border-card: rgba(255, 255, 255, 0.12);
+  --bg-card: rgba(26, 26, 32, 0.78);
+  --bg-card-hover: rgba(36, 36, 44, 0.9);
+  --border-card: rgba(255, 255, 255, 0.14);
   --text-main: #f5f5f7;
-  --text-muted: #86868b;
+  --text-muted: #8e8e93;
   --accent-blue: #2997ff;
-  --accent-blue-hover: #0077ed;
+  --accent-green: #34c759;
   --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
@@ -14,6 +15,7 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -24,6 +26,7 @@ body {
   height: 100vh;
   width: 100vw;
   user-select: none;
+  touch-action: none;
 }
 
 #canvas-container {
@@ -35,14 +38,175 @@ body {
   z-index: 1;
 }
 
-/* Header Navbar */
+/* Visibility Utilities */
+.desktop-only { display: inline-flex; }
+.mobile-only { display: none; }
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: flex !important; }
+}
+
+/* =========================================
+   1. WELCOME SCREEN (NOSTALGIA HERO)
+   ========================================= */
+.welcome-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 40%, rgba(26, 30, 46, 0.92) 0%, rgba(10, 10, 12, 0.98) 75%);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.welcome-overlay.hidden {
+  opacity: 0;
+  transform: scale(1.05);
+  pointer-events: none;
+}
+
+.welcome-content {
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-badge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--accent-blue);
+}
+
+.welcome-title {
+  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  background: linear-gradient(180deg, #ffffff 30%, #a1a1a6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.welcome-subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 480px;
+}
+
+.welcome-buttons {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+}
+
+.btn-welcome {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+}
+
+.btn-welcome.primary {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25);
+}
+
+.btn-welcome.primary:hover {
+  background: #e5e5ea;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(255, 255, 255, 0.35);
+}
+
+.btn-welcome.primary:active {
+  transform: scale(0.97);
+}
+
+.btn-welcome.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid var(--border-card);
+  backdrop-filter: blur(10px);
+}
+
+.btn-welcome.secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-welcome.secondary:active {
+  transform: scale(0.97);
+}
+
+.welcome-features {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.feature-tag {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 5px 12px;
+  border-radius: 12px;
+}
+
+/* =========================================
+   2. NAVBAR
+   ========================================= */
 .navbar {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 60px;
-  padding: 0 24px;
+  padding: 0 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -55,45 +219,45 @@ body {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .brand-icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .brand h1 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #fff;
 }
 
 .brand span {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.12);
   color: var(--text-muted);
-  font-weight: 500;
 }
 
 .nav-actions {
   pointer-events: auto;
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-icon {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   color: var(--text-main);
-  padding: 8px 14px;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  padding: 7px 12px;
+  border-radius: 18px;
+  font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -101,30 +265,33 @@ body {
 }
 
 .btn-icon:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
 }
 
-/* Customizer Panel (Left / Floating) */
+/* =========================================
+   3. COLOR CUSTOMIZER PANEL
+   ========================================= */
 .customizer-panel {
   position: absolute;
-  top: 76px;
-  left: 24px;
-  width: 320px;
-  max-height: calc(100vh - 100px);
+  top: 72px;
+  left: 20px;
+  width: 310px;
+  max-height: calc(100vh - 96px);
   background: var(--bg-card);
   border: 1px solid var(--border-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-radius: 20px;
-  padding: 20px;
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 22px;
+  padding: 18px;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   overflow-y: auto;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
 .panel-header {
@@ -134,9 +301,28 @@ body {
 }
 
 .panel-header h2 {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+}
+
+.live-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(41, 151, 255, 0.2);
+  color: var(--accent-blue);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.close-panel-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 /* Target Segmented Control */
@@ -153,9 +339,9 @@ body {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 7px 4px;
+  padding: 6px 2px;
   border-radius: 9px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -172,14 +358,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 10px 0;
+  gap: 12px;
 }
 
 .wheel-canvas-container {
   position: relative;
-  width: 190px;
-  height: 190px;
+  width: 180px;
+  height: 180px;
   cursor: crosshair;
 }
 
@@ -187,7 +372,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .wheel-handle {
@@ -204,18 +389,17 @@ body {
   transition: background-color 0.1s ease;
 }
 
-/* Brightness / Lightness Slider */
 .slider-container {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .slider-label {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
@@ -231,59 +415,57 @@ body {
 
 .custom-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   cursor: pointer;
 }
 
-/* Color Info Bar */
 .color-info-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .color-preview-box {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.3);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .hex-value {
   font-family: monospace;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #fff;
 }
 
 .native-color-input {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   cursor: pointer;
 }
 
-/* Color Presets */
+/* Presets */
 .preset-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .section-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -315,19 +497,21 @@ body {
 }
 
 .preset-chip span {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 600;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   color: #fff;
 }
 
-/* Interactive Click Wheel Floating Controller (Bottom Right) */
+/* =========================================
+   4. CLICK WHEEL CONTROLLER
+   ========================================= */
 .clickwheel-controller {
   position: absolute;
   bottom: 24px;
   right: 24px;
-  width: 200px;
-  height: 200px;
+  width: 190px;
+  height: 190px;
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   backdrop-filter: blur(24px);
@@ -338,6 +522,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  touch-action: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
 .wheel-outer {
@@ -346,6 +532,7 @@ body {
   height: 100%;
   border-radius: 50%;
   cursor: grab;
+  touch-action: none;
 }
 
 .wheel-outer:active {
@@ -357,77 +544,46 @@ body {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: color 0.15s ease, transform 0.1s ease;
   z-index: 2;
+  transition: all 0.1s ease;
 }
 
-.wheel-btn:hover {
-  color: #fff;
-  transform: scale(1.1);
-}
+.wheel-btn:hover { color: #fff; transform: scale(1.1); }
+.wheel-btn:active { transform: scale(0.92); }
 
-.wheel-btn:active {
-  transform: scale(0.95);
-}
-
-.btn-menu {
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.btn-play {
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.85rem;
-}
-
-.btn-prev {
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.85rem;
-}
-
-.btn-next {
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.85rem;
-}
+.btn-menu { top: 12px; left: 50%; transform: translateX(-50%); }
+.btn-play { bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; }
+.btn-prev { left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; }
+.btn-next { right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; }
 
 .wheel-center-btn {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
   z-index: 3;
   transition: all 0.15s ease;
 }
 
-.wheel-center-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+.wheel-center-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.wheel-center-btn:active { transform: translate(-50%, -50%) scale(0.94); }
 
-.wheel-center-btn:active {
-  transform: translate(-50%, -50%) scale(0.94);
-}
-
-/* Bottom Camera / Scene View Switcher */
+/* =========================================
+   5. CAMERA DOCK (DESKTOP)
+   ========================================= */
 .scene-dock {
   position: absolute;
   bottom: 24px;
@@ -457,15 +613,8 @@ body {
   transition: all 0.2s ease;
 }
 
-.dock-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.dock-btn.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-}
+.dock-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+.dock-btn.active { background: rgba(255, 255, 255, 0.2); color: #fff; }
 
 .divider {
   width: 1px;
@@ -473,9 +622,235 @@ body {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Loading Overlay */
-#loader-overlay {
+/* =========================================
+   6. MOBILE BOTTOM ACTION BAR
+   ========================================= */
+.mobile-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(18, 18, 22, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-top: 1px solid var(--border-card);
+  z-index: 20;
+  display: none;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.mobile-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.mobile-nav-btn.active {
+  color: var(--accent-blue);
+}
+
+.mobile-nav-btn .icon {
+  font-size: 1.25rem;
+}
+
+.mobile-nav-btn .label {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+/* =========================================
+   7. SETTINGS MODAL DIALOG
+   ========================================= */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-window {
+  background: rgba(28, 28, 34, 0.95);
+  border: 1px solid var(--border-card);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+  transform: translateY(20px) scale(0.96);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.active .modal-window {
+  transform: translateY(0) scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.close-modal-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.setting-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.setting-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Apple iOS Switch Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
   position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.15);
+  transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 26px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-green);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.select-input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-card);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.select-input option {
+  background: #1c1c22;
+  color: #fff;
+}
+
+.btn-primary-modal {
+  width: 100%;
+  padding: 12px;
+  background: #ffffff;
+  color: #000;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary-modal:hover {
+  background: #e5e5ea;
+}
+
+/* =========================================
+   8. LOADING OVERLAY
+   ========================================= */
+#loader-overlay {
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
@@ -499,21 +874,17 @@ body {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .loader-text {
   font-size: 0.95rem;
   color: var(--text-muted);
-  letter-spacing: -0.01em;
 }
 
-/* Tooltip / Hint */
 .interactive-hint {
   position: absolute;
-  top: 80px;
-  right: 24px;
+  top: 76px;
+  right: 20px;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 8px 14px;
@@ -522,4 +893,63 @@ body {
   color: var(--text-muted);
   z-index: 10;
   pointer-events: none;
+}
+
+/* =========================================
+   9. MOBILE RESPONSIVENESS OVERRIDES
+   ========================================= */
+@media (max-width: 768px) {
+  .welcome-buttons {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .btn-welcome {
+    width: 100%;
+    padding: 15px;
+  }
+
+  /* Customizer as a Bottom Sheet on Mobile */
+  .customizer-panel {
+    position: fixed;
+    top: auto;
+    bottom: 74px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: 70vh;
+    border-radius: 24px;
+    padding: 16px;
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .customizer-panel.mobile-active {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Compact Click Wheel on Mobile */
+  .clickwheel-controller {
+    bottom: 76px;
+    right: 50%;
+    transform: translateX(50%) translateY(120%);
+    width: 175px;
+    height: 175px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .clickwheel-controller.mobile-active {
+    transform: translateX(50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .wheel-center-btn {
+    width: 62px;
+    height: 62px;
+  }
 }
