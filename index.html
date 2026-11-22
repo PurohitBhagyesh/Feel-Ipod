@@ -61,97 +61,7 @@
   <!-- 3D WebGL Canvas -->
   <div id="canvas-container"></div>
 
-  <!-- Apple Liquid Glass Bottom Dock -->
-  <nav class="apple-glass-dock" id="bottom-dock">
-    <div class="dock-brand">
-      <!-- Modern Apple-Grade FeelPod Audio Logo -->
-      <svg class="dock-icon dock-logo-emblem" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="2" stroke-opacity="0.85" />
-        <circle cx="14" cy="14" r="8" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="1.2" />
-        <circle cx="14" cy="14" r="3.5" fill="currentColor" />
-        <path d="M14 3.5C19.799 3.5 24.5 8.20101 24.5 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-opacity="0.9" />
-      </svg>
-      <span class="dock-brand-name">FeelPod 3D</span>
-      <span id="dock-track-badge" class="dock-track-pill hidden">
-        <span class="dock-eq-bars">
-          <i></i><i></i><i></i>
-        </span>
-        <span id="dock-track-title">Playing</span>
-      </span>
-    </div>
-
-    <div class="dock-divider"></div>
-
-    <div class="dock-actions">
-      <!-- Theme Color Button -->
-      <button id="btn-theme" class="dock-btn" title="Customize Colors & Theme">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 2a4.5 4.5 0 0 0 0 9 4.5 4.5 0 0 1 0 9" />
-          <circle cx="8" cy="8.5" r="1" fill="currentColor" />
-          <circle cx="15.5" cy="8" r="1" fill="currentColor" />
-          <circle cx="16" cy="15" r="1" fill="currentColor" />
-        </svg>
-        <span class="dock-btn-label">Color</span>
-      </button>
-
-      <!-- Import Audio Buttons: Songs & Entire Folder -->
-      <button id="btn-import-dock" class="dock-btn" title="Import Individual Songs">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
-        <span class="dock-btn-label">Songs</span>
-      </button>
-
-      <button id="btn-import-folder" class="dock-btn" title="Import Entire Music Folder">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          <line x1="12" y1="11" x2="12" y2="17" />
-          <line x1="9" y1="14" x2="15" y2="14" />
-        </svg>
-        <span class="dock-btn-label">Folder</span>
-      </button>
-
-      <!-- Earphone Jack Plug Toggle Button -->
-      <button id="btn-plug-toggle" class="dock-btn" title="Connect / Disconnect Earphones">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-        </svg>
-        <span class="dock-btn-label" id="plug-status-label">Plug In</span>
-      </button>
-
-      <!-- Settings Button -->
-      <button id="btn-settings" class="dock-btn" title="Simulator Settings">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-        <span class="dock-btn-label">Settings</span>
-      </button>
-
-      <div class="dock-divider"></div>
-
-      <!-- Hide / Collapse Options Bar Button -->
-      <button id="btn-dock-collapse" class="dock-btn dock-collapse-btn" title="Hide Options Bar" aria-label="Hide options bar">
-        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
-    </div>
-  </nav>
-
-  <!-- Floating Pill to Re-Open Options Bar when Hidden -->
-  <button id="btn-dock-expand" class="dock-expand-tab hidden" title="Show Options Bar" aria-label="Show options bar">
-    <svg class="expand-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-    <span>Controls</span>
-  </button>
-
-  <!-- Color Customizer Dropdown / Palette Popover (Anchored Above Bottom Dock) -->
+  <!-- Color Customizer / Finish Palette Modal (Accessed from Settings) -->
   <div id="theme-tray" class="theme-tray hidden">
     <div class="tray-header">
       <div class="tray-title-group">
@@ -244,48 +154,69 @@
       </div>
 
       <div class="modal-body">
-        <!-- Tab 1: Preferences -->
+        <!-- Tab 1: Preferences & Controls -->
         <div id="tab-preferences" class="tab-content active">
-          <!-- Reduce Motion -->
+          <!-- Color & Finish Studio -->
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-name">Reduce Motion</span>
-              <span class="setting-desc">Disable breathing bobbing & smooth camera lerps</span>
+              <span class="setting-name">Finish & Color Studio</span>
+              <span class="setting-desc">Neutral classics, premium pro editions & custom RGB</span>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="setting-reduce-motion" />
-              <span class="slider"></span>
-            </label>
+            <button id="btn-open-palette" class="action-btn file-btn">
+              <svg class="btn-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a4.5 4.5 0 0 0 0 9 4.5 4.5 0 0 1 0 9" />
+              </svg>
+              Customize Finish
+            </button>
           </div>
 
-          <!-- Sensitivity Slider -->
+          <!-- Music Library Import -->
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-name">Wheel Sensitivity</span>
-              <span class="setting-desc">Scroll speed per rotary drag notch: <b id="val-sensitivity">1.0x</b></span>
+              <span class="setting-name">Music Library</span>
+              <span class="setting-desc">Import audio files (.mp3, .m4a, .wav) or entire folder</span>
             </div>
-            <div class="slider-wrapper">
-              <input type="range" id="setting-sensitivity" min="0.5" max="2.5" step="0.1" value="1.0" />
+            <div class="bg-upload-btns">
+              <button id="btn-import-songs-settings" class="action-btn file-btn">
+                <svg class="btn-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Import Songs
+              </button>
+              <button id="btn-import-folder-settings" class="action-btn file-btn">
+                <svg class="btn-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                Import Folder
+              </button>
             </div>
           </div>
 
-          <!-- Add Virtual Wheel -->
+          <!-- Headphones Audio Jack -->
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-name">On-Screen Virtual Wheel</span>
-              <span class="setting-desc">Show touch-friendly overlay controller on screen</span>
+              <span class="setting-name">Headphones Audio Jack</span>
+              <span class="setting-desc" id="settings-plug-status">Current state: Unplugged</span>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="setting-virtual-wheel" />
-              <span class="slider"></span>
-            </label>
+            <button id="btn-toggle-headphones-settings" class="action-btn file-btn">
+              <svg class="btn-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+              </svg>
+              <span id="btn-toggle-headphones-text">Plug In</span>
+            </button>
           </div>
 
-          <!-- Background Blend with iPod -->
+          <!-- Background Blend with iPod (Transparent Casing) -->
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-name">Background Blend</span>
-              <span class="setting-desc">Blend wallpaper reflections & lighting with iPod casing</span>
+              <span class="setting-name">Background Blend (Glass Casing)</span>
+              <span class="setting-desc">Make MP3 player casing transparent & blend with background</span>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="setting-bg-blend" />
@@ -311,6 +242,41 @@
               <input type="file" id="bg-file-input" accept="image/*,video/*" style="display: none;" />
               <button id="btn-reset-bg" class="action-btn reset-btn">Reset</button>
             </div>
+          </div>
+
+          <!-- Sensitivity Slider -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Wheel Sensitivity</span>
+              <span class="setting-desc">Scroll speed per rotary drag notch: <b id="val-sensitivity">1.0x</b></span>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" id="setting-sensitivity" min="0.5" max="2.5" step="0.1" value="1.0" />
+            </div>
+          </div>
+
+          <!-- Reduce Motion -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">Reduce Motion</span>
+              <span class="setting-desc">Disable breathing bobbing & smooth camera lerps</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-reduce-motion" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Add Virtual Wheel -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-name">On-Screen Virtual Wheel</span>
+              <span class="setting-desc">Show touch-friendly overlay controller on screen</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-virtual-wheel" />
+              <span class="slider"></span>
+            </label>
           </div>
         </div>
 

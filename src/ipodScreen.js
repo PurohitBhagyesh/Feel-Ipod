@@ -23,6 +23,9 @@ export class iPodScreenRenderer {
     this.textSize = 'medium'; // 'small' | 'medium' | 'large'
     this.textSizeScale = 1.0;
 
+    this.isHeadphonePlugged = false;
+    this.isBgBlend = false;
+
     this.batteryLevel = 1.0;
     this.isBatteryCharging = false;
     this.isPlaying = false;
@@ -104,10 +107,18 @@ export class iPodScreenRenderer {
         { id: 'albums', label: 'Albums', hasSub: false }
       ];
     } else if (view === 'settings') {
+      const isPlugged = Boolean(this.isHeadphonePlugged);
+      const isBlend = Boolean(this.isBgBlend);
       return [
-        { id: 'settingsModal', label: 'Preferences...', hasSub: false },
-        { id: 'about', label: 'About', hasSub: true },
-        { id: 'repeat', label: 'Repeat: All', hasSub: false }
+        { id: 'settingsModal', label: 'Preferences...', hasSub: true },
+        { id: 'themeModal', label: 'Color & Finish...', hasSub: true },
+        { id: 'togglePlug', label: isPlugged ? 'Headphones: Connected' : 'Headphones: Unplugged', hasSub: false },
+        { id: 'toggleBgBlend', label: isBlend ? 'BG Blend: ON (Glass)' : 'BG Blend: OFF (Solid)', hasSub: false },
+        { id: 'import', label: 'Import Songs...', hasSub: false },
+        { id: 'importFolder', label: 'Import Folder...', hasSub: false },
+        { id: 'uploadWallpaper', label: 'Set Wallpaper...', hasSub: false },
+        { id: 'resetWallpaper', label: 'Reset Wallpaper', hasSub: false },
+        { id: 'about', label: 'About FeelPod', hasSub: true }
       ];
     } else if (view === 'songs') {
       if (this.tracks.length === 0) {
@@ -160,6 +171,28 @@ export class iPodScreenRenderer {
 
     if (item.id === 'settingsModal') {
       return { action: 'openSettings' };
+    }
+
+    if (item.id === 'themeModal') {
+      return { action: 'openTheme' };
+    }
+
+    if (item.id === 'togglePlug') {
+      return { action: 'togglePlug' };
+    }
+
+    if (item.id === 'toggleBgBlend') {
+      this.isBgBlend = !this.isBgBlend;
+      this.needsUpdate = true;
+      return { action: 'toggleBgBlend', value: this.isBgBlend };
+    }
+
+    if (item.id === 'uploadWallpaper') {
+      return { action: 'uploadWallpaper' };
+    }
+
+    if (item.id === 'resetWallpaper') {
+      return { action: 'resetWallpaper' };
     }
 
     if (view === 'root') {

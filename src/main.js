@@ -8,6 +8,7 @@ import { saveCustomBackground, getCustomBackground, clearCustomBackground } from
 // --- State & Variables ---
 let scene, camera, renderer, controls;
 let ipodGroup, ipodBodyMesh;
+let ipodCasingMeshes = [];
 let headphoneJackPlug, earphoneCableLine, gripMesh, socketHitProxy;
 let screenTexture, screenRenderer, screenMesh, screenBezelMesh;
 
@@ -46,20 +47,37 @@ function updateCustomBgState() {
 }
 
 function updateBgBlendEffect() {
-  if (!ipodBodyMesh || !ipodBodyMesh.material) return;
   const isBlend = Boolean(simulatorSettings.bgBlend);
   const hasBg = Boolean(simulatorSettings.customBg || simulatorSettings.customVideo);
 
-  if (isBlend) {
-    // Harmonize casing shader roughness, metalness, and environmental sheen with wallpaper
-    ipodBodyMesh.material.roughness = hasBg ? 0.28 : 0.20;
-    ipodBodyMesh.material.metalness = hasBg ? 0.22 : 0.14;
-    ipodBodyMesh.material.needsUpdate = true;
-  } else {
-    // Classic pure glossy ceramic / anodized studio finish
-    ipodBodyMesh.material.roughness = 0.12;
-    ipodBodyMesh.material.metalness = 0.08;
-    ipodBodyMesh.material.needsUpdate = true;
+  ipodCasingMeshes.forEach(mesh => {
+    if (!mesh || !mesh.material) return;
+    if (isBlend) {
+      // Transparent liquid frosted glass casing: lets wallpaper & background show through!
+      mesh.material.transparent = true;
+      mesh.material.opacity = hasBg ? 0.46 : 0.58;
+      mesh.material.roughness = 0.22;
+      mesh.material.metalness = 0.18;
+      mesh.material.depthWrite = true;
+    } else {
+      // Classic pure opaque ceramic / anodized studio finish
+      mesh.material.transparent = false;
+      mesh.material.opacity = 1.0;
+      mesh.material.roughness = 0.12;
+      mesh.material.metalness = 0.08;
+      mesh.material.depthWrite = true;
+    }
+    mesh.material.needsUpdate = true;
+  });
+
+  if (clickWheelCanvas) {
+    renderClickWheelTexture();
+    if (clickWheelTexture) clickWheelTexture.needsUpdate = true;
+  }
+
+  if (screenRenderer) {
+    screenRenderer.isBgBlend = isBlend;
+    screenRenderer.needsUpdate = true;
   }
 }
 
@@ -338,6 +356,8 @@ function init() {
 function createDedicatedScreen() {
   screenRenderer = new iPodScreenRenderer();
   screenRenderer.setTextSize('medium'); // Locked directly to standard crisp medium typography
+  screenRenderer.isHeadphonePlugged = isPluggedIn;
+  screenRenderer.isBgBlend = Boolean(simulatorSettings.bgBlend);
   screenRenderer.setTracks(audioEngine.tracks);
   screenRenderer.render();
 
@@ -365,39 +385,39 @@ function createDedicatedScreen() {
   scene.add(screenMesh);
 }
 
-// --- Dynamic Camera Framing (Full-Size Mobile iPod with Clean Spacing Above Bottom Dock) ---
+// --- Dynamic Camera Framing (Compact, Perfectly Scaled MP3 Player in Center) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   let z, y, targetY;
 
   if (aspect < 0.65) {
     // Tall portrait smartphones (iPhone 12/13/14/15/Pro, Pixel, Galaxy):
-    // iPod scaled to full size (prominent, tactile, sharp) with z between 3.08 and 3.40,
-    // and elevated so the bottom click wheel has clean breathing room above the dock
-    z = Math.min(3.40, Math.max(3.08, 1.48 / aspect));
-    y = 0.06;
-    targetY = -0.04;
+    // Elegantly scaled compact MP3 player occupying ~62% of width with generous side margins,
+    // and vertically centered with headphone plug cleanly hovering above
+    z = Math.min(4.90, Math.max(4.25, 2.05 / aspect));
+    y = 0.0;
+    targetY = 0.0;
   } else if (aspect < 1.0) {
     // Tablets / square viewports in portrait
-    z = Math.min(4.10, Math.max(3.60, 1.85 / aspect));
-    y = 0.02;
+    z = 4.85;
+    y = 0.0;
     targetY = 0.0;
   } else if (aspect < 1.4) {
     // Compact laptops / 4:3 and 3:2 displays
-    z = 4.55;
-    y = -0.04;
-    targetY = -0.04;
+    z = 5.15;
+    y = 0.0;
+    targetY = 0.0;
   } else {
     // Standard and widescreen desktop displays (16:9, 16:10, ultrawide)
-    // Generous ~110px-130px clearance between bottom of pod and bottom dock
-    z = 4.65;
-    y = -0.04;
-    targetY = -0.04;
+    // Sits gracefully in the center like a premium industrial design exhibit
+    z = 5.35;
+    y = 0.0;
+    targetY = 0.0;
   }
 
   camera.position.set(0, y, z);
   if (controls) {
-    controls.target.set(0, targetY !== undefined ? targetY : y, 0);
+    controls.target.set(0, targetY, 0);
     controls.update();
   }
 }
@@ -673,7 +693,7 @@ function renderClickWheelTexture(pressedButton = null) {
   ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
   ctx.arc(cx, cy, innerR, 0, Math.PI * 2, true);
   ctx.closePath();
-  ctx.fillStyle = currentTheme.wheel;
+  ctx.fillStyle = simulatorSettings.bgBlend ? 'rgba(240, 243, 248, 0.72)' : currentTheme.wheel;
   ctx.fill();
 
   // Subtle tactile outer edge seam
@@ -722,7 +742,7 @@ function renderClickWheelTexture(pressedButton = null) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, innerR - 2, 0, Math.PI * 2);
-  ctx.fillStyle = pressedButton === 'select' ? '#dbeafe' : currentTheme.wheelCenter;
+  ctx.fillStyle = pressedButton === 'select' ? '#dbeafe' : (simulatorSettings.bgBlend ? 'rgba(255, 255, 255, 0.85)' : currentTheme.wheelCenter);
   ctx.fill();
 
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)';
@@ -851,10 +871,8 @@ function loadIpodModel() {
               metalness: 0.08
             });
             ipodBodyMesh = child;
-            updateBgBlendEffect();
+            ipodCasingMeshes.push(child);
           }
-          child.material.transparent = false;
-          child.material.opacity = 1.0;
           child.material.depthWrite = true;
           child.material.depthTest = true;
           child.material.needsUpdate = true;
@@ -862,6 +880,7 @@ function loadIpodModel() {
       }
     });
 
+    updateBgBlendEffect();
     scene.add(ipodGroup);
 
     overlay.style.opacity = '0';
@@ -900,14 +919,18 @@ function toggleHeadphonePlug(forceState = null) {
     } else {
       isPlugAnimating = false;
       audioEngine.setHeadphonesPlugged(isPluggedIn);
-      screenRenderer.isHeadphonesPlugged = isPluggedIn;
+      screenRenderer.isHeadphonePlugged = isPluggedIn;
       if (screenTexture) screenTexture.needsUpdate = true;
 
-      // Update top nav button status
-      const plugLabel = document.getElementById('plug-status-label');
-      const plugBtn = document.getElementById('btn-plug-toggle');
-      if (plugLabel) plugLabel.textContent = isPluggedIn ? 'Unplug' : 'Plug In';
-      if (plugBtn) plugBtn.classList.toggle('active', isPluggedIn);
+      // Update settings modal button & status
+      const settingsPlugStatus = document.getElementById('settings-plug-status');
+      const settingsPlugBtnText = document.getElementById('btn-toggle-headphones-text');
+      if (settingsPlugStatus) {
+        settingsPlugStatus.textContent = isPluggedIn ? 'Current state: Connected' : 'Current state: Unplugged';
+      }
+      if (settingsPlugBtnText) {
+        settingsPlugBtnText.textContent = isPluggedIn ? 'Unplug' : 'Plug In';
+      }
 
       if (isPluggedIn) {
         showToast("Earphones connected");
@@ -979,6 +1002,85 @@ function setupPlugInteraction() {
 }
 
 // --- Authentic Direct Click Wheel & Song Scrubber Interaction ---
+function handleScreenAction(res) {
+  if (!res) return;
+  if (res.action === 'importMp3') {
+    const fileInput = document.getElementById('mp3-file-input');
+    if (fileInput) fileInput.click();
+  } else if (res.action === 'importFolder') {
+    const folderInput = document.getElementById('mp3-folder-input');
+    if (folderInput) folderInput.click();
+  } else if (res.action === 'openSettings') {
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal) settingsModal.classList.remove('hidden');
+  } else if (res.action === 'openTheme') {
+    const themeTray = document.getElementById('theme-tray');
+    if (themeTray) themeTray.classList.remove('hidden');
+  } else if (res.action === 'togglePlug') {
+    toggleHeadphonePlug();
+  } else if (res.action === 'toggleBgBlend') {
+    simulatorSettings.bgBlend = Boolean(res.value);
+    updateBgBlendEffect();
+    const chk = document.getElementById('setting-bg-blend');
+    if (chk) chk.checked = simulatorSettings.bgBlend;
+    localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+    showToast(simulatorSettings.bgBlend ? "BG Blend: ON (Glass Casing)" : "BG Blend: OFF (Solid Casing)");
+  } else if (res.action === 'uploadWallpaper') {
+    const fileInput = document.getElementById('bg-file-input');
+    if (fileInput) fileInput.click();
+  } else if (res.action === 'resetWallpaper') {
+    clearCustomBackground().then(() => {
+      simulatorSettings.customBg = null;
+      simulatorSettings.customVideo = false;
+      updateCustomBgState();
+      const bgVideo = document.getElementById('bg-video');
+      if (bgVideo) {
+        bgVideo.pause();
+        bgVideo.src = '';
+        bgVideo.classList.remove('active');
+        bgVideo.classList.add('hidden');
+      }
+      document.body.style.backgroundImage = '';
+      localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
+      showToast("Background reset to Studio White");
+    });
+  } else if (res.action === 'playTrack') {
+    const track = audioEngine.selectTrackById(res.trackId);
+    if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
+    screenRenderer.setTrack(track, true);
+  } else if (res.action === 'togglePlay') {
+    if (audioEngine.tracks.length === 0) {
+      showToast("Library is empty. Import songs in Settings.");
+      return;
+    }
+    if (!isPluggedIn) {
+      toggleHeadphonePlug();
+    }
+    const isPlaying = audioEngine.toggleMusic();
+    if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
+    screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+  } else if (res.action === 'shuffle') {
+    if (audioEngine.tracks.length === 0) {
+      showToast("Library is empty. Import songs in Settings.");
+      return;
+    }
+    audioEngine.playDriveSpinUp();
+    if (!isPluggedIn) {
+      toggleHeadphonePlug();
+    }
+    const isPlaying = audioEngine.toggleMusic(true);
+    if (screenRenderer.getCurrentView() !== 'nowPlaying') {
+      screenRenderer.viewStack.push('nowPlaying');
+    }
+    screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+  }
+}
+
+// --- Direct Interactive 3D Click Wheel & Glass Touch Controls ---
 function setupDirectClickWheel() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -1147,50 +1249,7 @@ function setupDirectClickWheel() {
         flashWheelButton('select');
         audioEngine.playButtonPress();
         const res = screenRenderer.selectCurrent();
-        if (res) {
-          if (res.action === 'importMp3') {
-            const fileInput = document.getElementById('mp3-file-input');
-            if (fileInput) fileInput.click();
-          } else if (res.action === 'importFolder') {
-            const folderInput = document.getElementById('mp3-folder-input');
-            if (folderInput) folderInput.click();
-          } else if (res.action === 'openSettings') {
-            document.getElementById('settings-modal').classList.remove('hidden');
-          } else if (res.action === 'playTrack') {
-            const track = audioEngine.selectTrackById(res.trackId);
-            if (screenRenderer.getCurrentView() !== 'nowPlaying') {
-              screenRenderer.viewStack.push('nowPlaying');
-            }
-            screenRenderer.setTrack(track, true);
-          } else if (res.action === 'togglePlay') {
-            if (audioEngine.tracks.length === 0) {
-              showToast("Library is empty. Import songs to play.");
-              return;
-            }
-            if (!isPluggedIn) {
-              toggleHeadphonePlug();
-            }
-            const isPlaying = audioEngine.toggleMusic();
-            if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
-              screenRenderer.viewStack.push('nowPlaying');
-            }
-            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-          } else if (res.action === 'shuffle') {
-            if (audioEngine.tracks.length === 0) {
-              showToast("Library is empty. Import songs to play.");
-              return;
-            }
-            audioEngine.playDriveSpinUp();
-            if (!isPluggedIn) {
-              toggleHeadphonePlug();
-            }
-            const isPlaying = audioEngine.toggleMusic(true);
-            if (screenRenderer.getCurrentView() !== 'nowPlaying') {
-              screenRenderer.viewStack.push('nowPlaying');
-            }
-            screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-          }
-        }
+        handleScreenAction(res);
         if (screenTexture) screenTexture.needsUpdate = true;
         return;
       }
@@ -1406,11 +1465,12 @@ function applyTheme(theme) {
 
 function applyCustomTheme() {
   // 1. Update iPod Casing 3D Mesh Material
-  if (ipodBodyMesh && ipodBodyMesh.material) {
-    ipodBodyMesh.material.color.set(currentTheme.casing);
-    updateBgBlendEffect();
-    ipodBodyMesh.material.needsUpdate = true;
-  }
+  ipodCasingMeshes.forEach(mesh => {
+    if (mesh && mesh.material) {
+      mesh.material.color.set(currentTheme.casing);
+    }
+  });
+  updateBgBlendEffect();
 
   // 2. Update Click Wheel Procedural Texture
   renderClickWheelTexture();
@@ -1547,6 +1607,103 @@ function setupSettingsModal() {
     localStorage.setItem('mp3_settings', JSON.stringify(simulatorSettings));
     showToast("Background reset to Studio White");
   });
+
+  // Open Palette from Settings
+  const btnOpenPalette = document.getElementById('btn-open-palette');
+  if (btnOpenPalette) {
+    btnOpenPalette.addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('theme-tray').classList.remove('hidden');
+    });
+  }
+
+  // Import Songs from Settings
+  const btnImportSongsSettings = document.getElementById('btn-import-songs-settings');
+  if (btnImportSongsSettings) {
+    btnImportSongsSettings.addEventListener('click', () => {
+      document.getElementById('mp3-file-input').click();
+    });
+  }
+
+  // Import Folder from Settings
+  const btnImportFolderSettings = document.getElementById('btn-import-folder-settings');
+  if (btnImportFolderSettings) {
+    btnImportFolderSettings.addEventListener('click', () => {
+      document.getElementById('mp3-folder-input').click();
+    });
+  }
+
+  // Toggle Headphones from Settings
+  const btnToggleHeadphonesSettings = document.getElementById('btn-toggle-headphones-settings');
+  if (btnToggleHeadphonesSettings) {
+    btnToggleHeadphonesSettings.addEventListener('click', () => {
+      toggleHeadphonePlug();
+    });
+  }
+
+  // Keyboard Navigation & Shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      screenRenderer.scroll(-1);
+      audioEngine.playWheelClick();
+      if (screenTexture) screenTexture.needsUpdate = true;
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      screenRenderer.scroll(1);
+      audioEngine.playWheelClick();
+      if (screenTexture) screenTexture.needsUpdate = true;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      audioEngine.playButtonPress();
+      flashWheelButton('select');
+      const res = screenRenderer.selectCurrent();
+      handleScreenAction(res);
+      if (screenTexture) screenTexture.needsUpdate = true;
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      const settingsModal = document.getElementById('settings-modal');
+      const themeTray = document.getElementById('theme-tray');
+      const immersiveModal = document.getElementById('immersive-modal');
+      if (settingsModal && !settingsModal.classList.contains('hidden')) {
+        settingsModal.classList.add('hidden');
+        return;
+      }
+      if (themeTray && !themeTray.classList.contains('hidden')) {
+        themeTray.classList.add('hidden');
+        return;
+      }
+      if (immersiveModal && immersiveModal.classList.contains('active')) {
+        immersiveModal.classList.remove('active');
+        return;
+      }
+      flashWheelButton('menu');
+      audioEngine.playButtonPress();
+      screenRenderer.goBack();
+      if (screenTexture) screenTexture.needsUpdate = true;
+    } else if (e.key === ' ' || e.code === 'Space') {
+      e.preventDefault();
+      flashWheelButton('play');
+      if (audioEngine.tracks.length > 0) {
+        if (!isPluggedIn) toggleHeadphonePlug();
+        const isPlaying = audioEngine.toggleMusic();
+        if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
+          screenRenderer.viewStack.push('nowPlaying');
+        }
+        screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
+        if (screenTexture) screenTexture.needsUpdate = true;
+      }
+    } else if (e.key === 's' || e.key === 'S') {
+      const settingsModal = document.getElementById('settings-modal');
+      if (settingsModal) settingsModal.classList.toggle('hidden');
+    } else if (e.key === 'c' || e.key === 'C') {
+      const themeTray = document.getElementById('theme-tray');
+      if (themeTray) themeTray.classList.toggle('hidden');
+    } else if (e.key === 'h' || e.key === 'H') {
+      toggleHeadphonePlug();
+    }
+  });
 }
 
 // --- On-Screen Virtual Click Wheel HUD ---
@@ -1570,31 +1727,7 @@ function setupVirtualWheelHUD() {
     audioEngine.playButtonPress();
     flashWheelButton('select');
     const res = screenRenderer.selectCurrent();
-    if (res) {
-      if (res.action === 'importMp3') {
-        document.getElementById('mp3-file-input').click();
-      } else if (res.action === 'importFolder') {
-        const folderInput = document.getElementById('mp3-folder-input');
-        if (folderInput) folderInput.click();
-      } else if (res.action === 'openSettings') {
-        document.getElementById('settings-modal').classList.remove('hidden');
-      } else if (res.action === 'playTrack') {
-        const track = audioEngine.selectTrackById(res.trackId);
-        if (screenRenderer.getCurrentView() !== 'nowPlaying') {
-          screenRenderer.viewStack.push('nowPlaying');
-        }
-        screenRenderer.setTrack(track, true);
-      } else if (res.action === 'togglePlay') {
-        if (!isPluggedIn) {
-          toggleHeadphonePlug();
-        }
-        const isPlaying = audioEngine.toggleMusic();
-        if (isPlaying && screenRenderer.getCurrentView() !== 'nowPlaying') {
-          screenRenderer.viewStack.push('nowPlaying');
-        }
-        screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-      }
-    }
+    handleScreenAction(res);
     if (screenTexture) screenTexture.needsUpdate = true;
   }
 

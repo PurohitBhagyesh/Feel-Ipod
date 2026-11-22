@@ -12,16 +12,32 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 
 ## Key Features
 
-- **Solid Bold Black Typography & Apple Liquid Glass Design**
-  - High-contrast, razor-sharp deep solid black text (`#000000`, `font-weight: 600–700`) on default studio white glass surfaces for crisp, effortless legibility under all lighting conditions.
-  - Transparent liquid glass components (`.apple-glass-dock`, `.modal-card`, `.theme-tray`, `.loader-glass-card`) with prominent dark perimeter rims and deep edge drop shadows (`box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22)`).
+- **Pure Clean 3D Canvas (Zero On-Screen Floating Controls)**
+  - Removed all overlay bottom docks and floating buttons from both desktop and mobile screens.
+  - The 3D MP3 player floats freely, cleanly, and distraction-free in the center of the display, controlled entirely through its authentic hardware-modeled physical interface and built-in LCD software menus.
 
-- **Full-Size Responsive Mobile Framing & Clearance**
-  - Re-engineered camera viewport calculations in portrait mobile mode (`y = 0.05, z = 3.08-3.40`) giving the 3D iPod a prominent, full-screen tactile presence while preserving generous ~100px clearance above the bottom options dock.
-  - Option to collapse the bottom dock completely with the `>` button to enjoy pure on-device click-wheel and LCD screen interaction.
+- **Embedded In-Device Settings & Controls**
+  - All device controls are housed inside the MP3 player's own LCD **Settings** menu and modal:
+    - *Color & Finish Studio*: Neutral classics, luxury pro finishes, and custom RGB pickers.
+    - *Headphones Audio Jack*: Connect or disconnect the 3.5mm headphone plug with live status synchronization.
+    - *Background Blend*: Toggle translucent glass casing that blends with custom wallpapers and videos.
+    - *Media Library*: Import individual songs or entire directories recursively (`webkitdirectory`).
+    - *Wallpaper Customizer*: Upload custom image or video wallpapers and reset to studio default.
+    - *Preferences Modal*: Accessibility options, wheel sensitivity slider, reduce motion toggle, and contact/privacy tabs.
+  - Full keyboard navigation support (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`/`Backspace`, `Space`, `S`, `C`, `H`).
 
-- **Background Blend Mode**
-  - New preference switch in Settings that harmonizes the iPod casing roughness, metalness, and environmental light reception with active custom wallpapers and video backgrounds.
+- **Compact, Perfectly Proportioned Handheld Scaling (Desktop & Mobile)**
+  - Re-engineered camera framing (`z = 4.25-4.90` on mobile, `z = 5.35` on desktop) making the MP3 player comfortably smaller and realistically proportioned.
+  - On smartphones, the player occupies ~62% of the screen width with generous side and vertical margins, ensuring the device and hovering headphone jack are always fully visible.
+
+- **Background Blend Mode (Transparent Frosted Glass Casing)**
+  - When enabled, transforms the solid ceramic casing into a liquid frosted glass body (`opacity: 0.46–0.58`, `roughness: 0.22`, `metalness: 0.18`), allowing background wallpapers, live videos, or studio environments to shine directly through the device.
+  - Procedural click wheel dynamically adopts a semi-transparent frosted acrylic finish.
+
+- **Animated Liquid Glass "Wear Headphones" Modal**
+  - Apple-grade liquid frosted glass (`backdrop-filter: blur(48px) saturate(220%)`, `background: rgba(255, 255, 255, 0.12–0.24)`).
+  - Floating levitation animation with radiating audio ripples.
+  - High-legibility bold typography (`font-weight: 700` heading, `font-weight: 600` subtext) for crisp clarity under all backgrounds.
 
 - **PWA & Add to Home Screen with Native Logo**
   - Web App Manifest (`manifest.webmanifest`) and multi-resolution Apple Touch Icons (180x180, 192x192, 512x512).
