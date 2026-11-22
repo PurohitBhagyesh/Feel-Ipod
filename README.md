@@ -46,8 +46,8 @@ An authentic, tactile 3D simulator for the classic portable MP3 player experienc
 - **Comprehensive SEO & Social Metadata**
   - Rich Open Graph (`og:*`), Twitter Cards (`summary_large_image`), and Schema.org JSON-LD structured data for fast indexing and high-fidelity sharing previews.
 
-- **Transparent Liquid Glass Loading Screen**
-  - Features an Apple frosted liquid glass capsule (`backdrop-filter: blur(28px) saturate(180%)`) with a minimalist spinner and smooth transition.
+- **Instant Zero-Delay Startup**
+  - Instantaneous launch with zero startup overlay, loading cards, or spinners—the 3D canvas and MP3 player render immediately upon opening.
 
 - **Real Device Battery Synchronization**
   - Live battery percentage (`XX%`), battery level fill, and charging indicator (lightning bolt) rendered directly in the LCD status bar, dynamically synchronizing with the user's actual physical device battery state via `navigator.getBattery()`.

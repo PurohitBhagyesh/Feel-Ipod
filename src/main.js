@@ -825,7 +825,6 @@ function drawNextIcon(ctx, x, y, size) {
 // --- Load Model Body with 10x Scale Fix, Opaque Casing, & Ports Hidden ---
 function loadIpodModel() {
   const loader = new GLTFLoader();
-  const overlay = document.getElementById('loader-overlay');
 
   loader.load('/models/ipod_classic.glb', (gltf) => {
     ipodGroup = gltf.scene;
@@ -882,10 +881,6 @@ function loadIpodModel() {
 
     updateBgBlendEffect();
     scene.add(ipodGroup);
-
-    overlay.style.opacity = '0';
-    setTimeout(() => { overlay.style.display = 'none'; }, 200);
-
   }, undefined, (error) => {
     console.error('Failed to load MP3 player model:', error);
   });
