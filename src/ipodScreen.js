@@ -1,4 +1,4 @@
-// Authentic iPod LCD Screen Renderer matching the classic interface
+// Authentic LCD Screen Renderer for MP3 Player Simulator 3D
 
 export class iPodScreenRenderer {
   constructor() {
@@ -96,7 +96,6 @@ export class iPodScreenRenderer {
   scroll(delta) {
     const view = this.getCurrentView();
     if (view === 'nowPlaying') {
-      // In Now Playing, wheel turn adjusts volume
       return;
     }
 
@@ -262,7 +261,7 @@ export class iPodScreenRenderer {
     }
 
     // Title in center
-    let title = 'iPod';
+    let title = 'MP3 Player';
     const view = this.getCurrentView();
     if (view === 'music') title = 'Music';
     else if (view === 'songs') title = 'Songs';
@@ -420,7 +419,7 @@ export class iPodScreenRenderer {
     // Album
     ctx.font = '15px -apple-system, sans-serif';
     ctx.fillStyle = '#666666';
-    const album = this.currentTrack.album || "Imported MP3";
+    const album = this.currentTrack.album || "MP3 Player Simulator 3D";
     const albumShort = album.length > 22 ? album.slice(0, 20) + '...' : album;
     ctx.fillText(albumShort, textX, 153);
 
@@ -441,7 +440,7 @@ export class iPodScreenRenderer {
     ctx.textAlign = 'center';
     ctx.fillText('MP3 • 320 KBPS', textX + badgeW / 2, badgeY + 14);
 
-    // 3. Real-Time 10-Band LCD Graphic Equalizer (Makes music feel ALIVE!)
+    // 3. Real-Time 10-Band LCD Graphic Equalizer
     const eqX = textX;
     const eqY = 196;
     const eqTotalW = w - textX - 24;
@@ -471,10 +470,8 @@ export class iPodScreenRenderer {
       for (let s = 0; s < numSegments; s++) {
         const sy = eqY + (numSegments - 1 - s) * (segHeight + segGap);
         if (s < activeSegs) {
-          // Lit LCD segment
           ctx.fillStyle = s >= numSegments - 2 ? '#455d82' : '#6f82a5';
         } else {
-          // Unlit faint LCD segment grid
           ctx.fillStyle = '#e8ebf0';
         }
         ctx.fillRect(bx, sy, barWidth, segHeight);

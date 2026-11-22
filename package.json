@@ -1,8 +1,8 @@
 {
-  "name": "ipod-feel-simulator-3d",
+  "name": "mp3-player-simulator-3d",
   "private": true,
   "version": "1.0.0",
-  "description": "iPod Feel Simulator 3D - An authentic, tactile 3D simulator for the classic portable music player experience.",
+  "description": "MP3 Player Simulator 3D - An authentic, tactile 3D simulator for the classic portable music player experience.",
   "type": "module",
   "scripts": {
     "dev": "vite",

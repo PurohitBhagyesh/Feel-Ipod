@@ -1,4 +1,4 @@
-// Web Audio API Sound Generator & Real MP3 Playback Engine for iPod Feel Simulator 3D
+// Web Audio API Sound Generator & Real MP3 Playback Engine for MP3 Player Simulator 3D
 
 class iPodAudioEngine {
   constructor() {
@@ -154,7 +154,7 @@ class iPodAudioEngine {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title,
         artist: track.artist,
-        album: track.album || "iPod Feel Simulator 3D"
+        album: track.album || "MP3 Player Simulator 3D"
       });
       navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
     }

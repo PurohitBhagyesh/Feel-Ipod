@@ -8,11 +8,13 @@ import { audioEngine } from './audioEffects.js';
 let scene, camera, renderer, controls;
 let ipodGroup;
 let headphoneJackPlug, earphoneCableLine;
-let screenTexture, screenRenderer;
+let screenTexture, screenRenderer, screenMesh, screenBezelMesh;
 
 // World Coordinates for the Top Headphone Hole & Plug
 const IPOD_OFFSET_Y = -0.15;
-const WHEEL_CENTER_Y = -0.55 + IPOD_OFFSET_Y; // -0.70 (exact geometry center of click wheel)
+const WHEEL_CENTER_Y = -0.538; // Exact concentric geometric center of click wheel on 3D casing
+const SCREEN_CENTER_Y = 0.395; // Center Y of LCD screen window
+const FRONT_FACE_Z = 0.1404;   // Front face depth for screen & click wheel
 const PLUG_HOLE_X = 0;
 const PLUG_HOLE_Z = 0;
 const PLUG_INSERTED_Y = 0.845; // Sits flush on top surface
@@ -101,21 +103,16 @@ function init() {
   setupLighting();
   createStudioContactShadow();
 
-  // Dynamic LCD Screen Engine
-  screenRenderer = new iPodScreenRenderer();
-  screenRenderer.setTracks(audioEngine.tracks);
-  screenRenderer.render();
-  screenTexture = new THREE.CanvasTexture(screenRenderer.canvas);
-  screenTexture.colorSpace = THREE.SRGBColorSpace;
-  screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  // 1. Dynamic LCD Screen Engine & Dedicated Screen Plane
+  createDedicatedScreen();
 
-  // Pristine Polished 3.5mm Headphone Jack Assembly
+  // 2. Pristine Polished 3.5mm Headphone Jack Assembly
   createHeadphoneJackAssembly();
 
-  // Procedural Pixel-Perfect Click Wheel
+  // 3. Procedural Pixel-Perfect Click Wheel
   createProceduralClickWheel();
 
-  // Load iPod Model
+  // 4. Load iPod Model Body
   loadIpodModel();
 
   // Setup Direct Click Wheel & Audio
@@ -127,12 +124,12 @@ function init() {
   // Audio Sync
   window.addEventListener('ipod-timeupdate', (e) => {
     screenRenderer.setTimeUpdate(e.detail.currentTime, e.detail.duration, e.detail.progress);
-    screenTexture.needsUpdate = true;
+    if (screenTexture) screenTexture.needsUpdate = true;
   });
 
   window.addEventListener('ipod-state-change', () => {
     screenRenderer.setTrack(audioEngine.getCurrentTrack(), audioEngine.isPlaying);
-    screenTexture.needsUpdate = true;
+    if (screenTexture) screenTexture.needsUpdate = true;
   });
 
   // Responsive Resizing
@@ -142,15 +139,47 @@ function init() {
   animate();
 }
 
+// --- Dedicated Guaranteed-Visible LCD Screen Mesh ---
+function createDedicatedScreen() {
+  screenRenderer = new iPodScreenRenderer();
+  screenRenderer.setTracks(audioEngine.tracks);
+  screenRenderer.render();
+
+  screenTexture = new THREE.CanvasTexture(screenRenderer.canvas);
+  screenTexture.colorSpace = THREE.SRGBColorSpace;
+  screenTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  screenTexture.needsUpdate = true;
+
+  // Thin recessed dark bezel frame behind LCD
+  const bezelGeo = new THREE.PlaneGeometry(0.816, 0.616);
+  const bezelMat = new THREE.MeshBasicMaterial({ color: 0x14161c });
+  screenBezelMesh = new THREE.Mesh(bezelGeo, bezelMat);
+  screenBezelMesh.position.set(0, SCREEN_CENTER_Y, FRONT_FACE_Z - 0.0006);
+  screenBezelMesh.renderOrder = 4;
+  scene.add(screenBezelMesh);
+
+  // Active LCD screen plane (width 0.80, height 0.60 matching 4:3 512x384 canvas)
+  const screenGeo = new THREE.PlaneGeometry(0.80, 0.60);
+  const screenMaterial = new THREE.MeshBasicMaterial({
+    map: screenTexture,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
+  });
+
+  screenMesh = new THREE.Mesh(screenGeo, screenMaterial);
+  screenMesh.position.set(0, SCREEN_CENTER_Y, FRONT_FACE_Z);
+  screenMesh.renderOrder = 5;
+  scene.add(screenMesh);
+}
+
 // --- Dynamic Camera Framing (Comfortable Framing with Space for Plug) ---
 function updateCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   if (aspect < 1) {
-    // Mobile Portrait: scale Z to frame device width and top plug comfortably
     const z = Math.max(4.5, 2.6 / aspect);
     camera.position.set(0, 0.15, z);
   } else {
-    // Desktop Landscape: perfectly framed with generous breathing room
     camera.position.set(0, 0.15, 4.35);
   }
   if (controls) {
@@ -332,19 +361,21 @@ function createProceduralClickWheel() {
   clickWheelTexture = new THREE.CanvasTexture(clickWheelCanvas);
   clickWheelTexture.colorSpace = THREE.SRGBColorSpace;
   clickWheelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  clickWheelTexture.needsUpdate = true;
 
   // Circular Click Wheel overlay mesh positioned right on the front casing
   const geo = new THREE.CircleGeometry(0.375, 64);
   const mat = new THREE.MeshBasicMaterial({
     map: clickWheelTexture,
     transparent: true,
-    depthWrite: false,
-    depthTest: true
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
   });
 
   clickWheelMesh = new THREE.Mesh(geo, mat);
-  clickWheelMesh.position.set(0, WHEEL_CENTER_Y, 0.1402);
-  clickWheelMesh.renderOrder = 3;
+  clickWheelMesh.position.set(0, WHEEL_CENTER_Y, FRONT_FACE_Z);
+  clickWheelMesh.renderOrder = 5;
   scene.add(clickWheelMesh);
 }
 
@@ -359,7 +390,7 @@ function renderClickWheelTexture(pressedButton = null) {
 
   ctx.clearRect(0, 0, w, h);
 
-  // 1. Outer Ring Base (Smooth Apple Classic Matte Grey)
+  // 1. Outer Ring Base (Smooth Classic Matte Grey)
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
@@ -491,7 +522,7 @@ function drawNextIcon(ctx, x, y, size) {
   ctx.fillRect(x + size / 2 - barW + 2, y - barH / 2, barW, barH);
 }
 
-// --- Load Model with 10x Scale Fix, Opaque Casing, & Dynamic Screen ---
+// --- Load Model Body with 10x Scale Fix, Opaque Casing, & Ports Hidden ---
 function loadIpodModel() {
   const loader = new GLTFLoader();
   const overlay = document.getElementById('loader-overlay');
@@ -504,55 +535,46 @@ function loadIpodModel() {
     ipodGroup.rotation.y = -Math.PI / 2;
     ipodGroup.position.set(0, IPOD_OFFSET_Y, 0);
 
-    const screenMaterial = new THREE.MeshBasicMaterial({
-      map: screenTexture,
-      depthWrite: true,
-      depthTest: true
-    });
-
     ipodGroup.traverse((child) => {
       if (child.isMesh) {
         const parentName = child.parent ? child.parent.name : '';
         const name = child.name || '';
 
-        // 1. Dynamic LCD Screen
-        if (parentName.includes('Screen') || name.includes('Screen')) {
-          const uvAttr = child.geometry.attributes.uv;
-          const posAttr = child.geometry.attributes.position;
-          const minY = 0.215, maxY = 0.875;
-          const minZ = -0.398, maxZ = 0.403;
-
-          for (let i = 0; i < posAttr.count; i++) {
-            const y = posAttr.getY(i);
-            const z = posAttr.getZ(i);
-            const u = (maxZ - z) / (maxZ - minZ);
-            const v = (y - minY) / (maxY - minY);
-            uvAttr.setXY(i, u, v);
-          }
-          uvAttr.needsUpdate = true;
-          child.material = screenMaterial;
-          child.renderOrder = 2;
-        }
-        // 2. Hide internal / unwanted ports that show through or poke out
-        else if (
+        // Hide internal GLB Screen and internal Ports so dedicated crisp meshes shine
+        if (
+          parentName.includes('Screen') || name.includes('Screen') ||
           parentName.includes('Port') || name.includes('Port') ||
           parentName.includes('Charging') || name.includes('Charging')
         ) {
           child.visible = false;
         }
-        // 3. Solid, Opaque iPod Casing (Body & Switches)
+        // Pristine, Opaque White Casing & Switches (Zero Logos / Brand Markings)
         else {
-          if (child.material) {
-            child.material = child.material.clone();
-            child.material.transparent = false;
-            child.material.transmission = 0;
-            child.material.opacity = 1.0;
-            child.material.depthWrite = true;
-            child.material.depthTest = true;
-            child.material.roughness = 0.20;
-            child.material.metalness = 0.08;
-            child.material.needsUpdate = true;
+          if (name.includes('Switch') || parentName.includes('Switch')) {
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0xe0e3e8,
+              metalness: 0.65,
+              roughness: 0.28
+            });
+          } else if (name.includes('Headphone') || parentName.includes('Headphone')) {
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0x111317,
+              metalness: 0.90,
+              roughness: 0.15
+            });
+          } else {
+            // Main body casing: pure glossy white without any brand logos or artifacts
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0xfcfdff,
+              roughness: 0.18,
+              metalness: 0.05
+            });
           }
+          child.material.transparent = false;
+          child.material.opacity = 1.0;
+          child.material.depthWrite = true;
+          child.material.depthTest = true;
+          child.material.needsUpdate = true;
         }
       }
     });
@@ -563,7 +585,7 @@ function loadIpodModel() {
     setTimeout(() => { overlay.style.display = 'none'; }, 200);
 
   }, undefined, (error) => {
-    console.error('Failed to load iPod model:', error);
+    console.error('Failed to load MP3 player model:', error);
   });
 }
 
@@ -592,7 +614,7 @@ function toggleHeadphonePlug() {
       isPlugAnimating = false;
       audioEngine.setHeadphonesPlugged(isPluggedIn);
       screenRenderer.isHeadphonesPlugged = isPluggedIn;
-      screenTexture.needsUpdate = true;
+      if (screenTexture) screenTexture.needsUpdate = true;
 
       if (isPluggedIn) {
         showToast("🎧 Earphones connected!");
@@ -600,12 +622,12 @@ function toggleHeadphonePlug() {
         if (!audioEngine.isPlaying) {
           audioEngine.toggleMusic(true);
           screenRenderer.setTrack(audioEngine.getCurrentTrack(), true);
-          screenTexture.needsUpdate = true;
+          if (screenTexture) screenTexture.needsUpdate = true;
         }
       } else {
         showToast("🔌 Earphones disconnected — playback paused");
         screenRenderer.setTrack(audioEngine.getCurrentTrack(), false);
-        screenTexture.needsUpdate = true;
+        if (screenTexture) screenTexture.needsUpdate = true;
       }
     }
   }
@@ -631,7 +653,7 @@ function setupPlugInteraction() {
       return;
     }
 
-    // Hit against the top opening of the iPod (y > 0.65 in world coordinates)
+    // Hit against the top opening of the MP3 player (y > 0.65 in world coordinates)
     if (ipodGroup) {
       const ipodHits = raycaster.intersectObjects(ipodGroup.children, true);
       if (ipodHits.length > 0) {
@@ -657,7 +679,6 @@ function setupDirectClickWheel() {
   let hasDragged = false;
 
   function getRaycastHit(e) {
-    if (!ipodGroup && !clickWheelMesh) return null;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     mouse.x = (clientX / window.innerWidth) * 2 - 1;
@@ -666,6 +687,7 @@ function setupDirectClickWheel() {
 
     const targets = [];
     if (clickWheelMesh) targets.push(clickWheelMesh);
+    if (screenMesh) targets.push(screenMesh);
     if (ipodGroup) targets.push(...ipodGroup.children);
 
     const intersects = raycaster.intersectObjects(targets, true);
@@ -737,7 +759,7 @@ function setupDirectClickWheel() {
       } else {
         screenRenderer.scroll(step);
       }
-      screenTexture.needsUpdate = true;
+      if (screenTexture) screenTexture.needsUpdate = true;
     }
   });
 
@@ -785,7 +807,7 @@ function setupDirectClickWheel() {
             }
           }
         }
-        screenTexture.needsUpdate = true;
+        if (screenTexture) screenTexture.needsUpdate = true;
         return;
       }
 
@@ -798,7 +820,7 @@ function setupDirectClickWheel() {
           flashWheelButton('menu');
           audioEngine.playButtonPress();
           screenRenderer.goBack();
-          screenTexture.needsUpdate = true;
+          if (screenTexture) screenTexture.needsUpdate = true;
         } else if (angleDeg <= -45 && angleDeg >= -135) {
           // BOTTOM: PLAY / PAUSE
           flashWheelButton('play');
@@ -807,26 +829,26 @@ function setupDirectClickWheel() {
           } else {
             const isPlaying = audioEngine.toggleMusic();
             screenRenderer.setTrack(audioEngine.getCurrentTrack(), isPlaying);
-            screenTexture.needsUpdate = true;
+            if (screenTexture) screenTexture.needsUpdate = true;
           }
         } else if (Math.abs(angleDeg) > 135) {
           // LEFT: PREV TRACK
           flashWheelButton('prev');
           const track = audioEngine.prevTrack();
           screenRenderer.setTrack(track, audioEngine.isPlaying);
-          screenTexture.needsUpdate = true;
+          if (screenTexture) screenTexture.needsUpdate = true;
         } else if (Math.abs(angleDeg) < 45) {
           // RIGHT: NEXT TRACK
           flashWheelButton('next');
           const track = audioEngine.nextTrack();
           screenRenderer.setTrack(track, audioEngine.isPlaying);
-          screenTexture.needsUpdate = true;
+          if (screenTexture) screenTexture.needsUpdate = true;
         }
       }
     }
   });
 
-  // Direct Mouse Wheel Scroll over the iPod
+  // Direct Mouse Wheel Scroll over the player
   window.addEventListener('wheel', (e) => {
     const hit = getRaycastHit(e);
     if (hit) {
@@ -839,7 +861,7 @@ function setupDirectClickWheel() {
       } else {
         screenRenderer.scroll(step);
       }
-      screenTexture.needsUpdate = true;
+      if (screenTexture) screenTexture.needsUpdate = true;
     }
   }, { passive: true });
 }
@@ -899,7 +921,7 @@ function handleAudioFilesImport(files) {
 
     screenRenderer.viewStack = ['root', 'music', 'songs', 'nowPlaying'];
     screenRenderer.setTrack(firstTrack, isPlaying);
-    screenTexture.needsUpdate = true;
+    if (screenTexture) screenTexture.needsUpdate = true;
 
     showToast(`🎵 Playing: ${firstTrack.title}`);
   }).catch((err) => {
@@ -922,7 +944,7 @@ function animate() {
 
   // Update dynamic LCD screen canvas with live frequency data for equalizer
   if (screenRenderer.render(audioEngine.getFrequencyData())) {
-    screenTexture.needsUpdate = true;
+    if (screenTexture) screenTexture.needsUpdate = true;
   }
 
   renderer.render(scene, camera);
